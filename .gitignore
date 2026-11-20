@@ -82,3 +82,7 @@ __recovery/
 # Configuração local com senhas e chave JWT (nunca versionar)
 config.ini
 .env
+
+
+# Dependências baixadas pelo Boss (restauradas com boss install)
+modules/
