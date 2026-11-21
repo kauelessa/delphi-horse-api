@@ -13,6 +13,11 @@ uses
 
 procedure TratarErros(AReq: THorseRequest; ARes: THorseResponse; ANext: TProc);
 
+// Callback de erro do Jhonson (corpo vazio ou JSON malformado em POST/PUT/PATCH
+// com Content-Type: application/json). Sem ele o Jhonson responde o texto puro
+// "Invalid JSON", fora do padrão { "erro": ... } da API.
+procedure ResponderJSONInvalido(ARes: THorseResponse; const AErro: string);
+
 implementation
 
 uses
@@ -27,6 +32,30 @@ begin
   ARes
     .Send<TJSONObject>(TJSONObject.Create.AddPair('erro', AMensagem))
     .Status(AStatus);
+end;
+
+procedure ResponderJSONInvalido(ARes: THorseResponse; const AErro: string);
+var
+  LJson: TJSONObject;
+begin
+  // 'Empty JSON' é a mensagem que o Jhonson usa para corpo vazio; o resto
+  // é a mensagem do parser, que não vale a pena expor ao cliente.
+  LJson := TJSONObject.Create;
+  try
+    if SameText(AErro, 'Empty JSON') then
+      LJson.AddPair('erro', 'Corpo da requisição vazio.')
+    else
+      LJson.AddPair('erro', 'JSON inválido no corpo da requisição.');
+
+    // O Jhonson interrompe o pipeline logo depois deste callback, então
+    // ninguém serializaria um Send<TJSONObject>: o texto já vai pronto.
+    ARes
+      .Send(LJson.ToJSON)
+      .ContentType('application/json; charset=UTF-8')
+      .Status(THTTPStatus.BadRequest);
+  finally
+    LJson.Free;
+  end;
 end;
 
 procedure TratarErros(AReq: THorseRequest; ARes: THorseResponse; ANext: TProc);

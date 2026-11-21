@@ -69,7 +69,7 @@ begin
   //  - Autenticar por último, para que o 401 dele também passe pelo TratarErros.
   THorse
     .Use(CORS)
-    .Use(Jhonson)
+    .Use(Jhonson('UTF-8', ResponderJSONInvalido))
     .Use(TratarErros)
     .Use(Autenticar);
 
