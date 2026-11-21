@@ -1,0 +1,7 @@
+{
+  "clienteId": 1,
+  "itens": [
+    { "produtoId": 1, "quantidade": 2 },
+    { "produtoId": 2, "quantidade": 1 }
+  ]
+}

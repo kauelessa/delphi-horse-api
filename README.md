@@ -130,6 +130,7 @@ curl -X POST http://localhost:9000/pedidos   -H "Authorization: Bearer <token>" 
 }
 ```
 
+Outros corpos de requisição prontos (válidos e inválidos, para ver as respostas de erro) ficam em [`docs/exemplos/`](docs/exemplos/). Com curl, use `-d @docs/exemplos/pedido.json`.
 
 ### Listagens paginadas
 
