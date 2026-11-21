@@ -17,7 +17,6 @@ uses
   Model.Documento in 'src\Models\Model.Documento.pas',
   Infra.Config in 'src\Infra\Infra.Config.pas',
   Infra.Conexao in 'src\Infra\Infra.Conexao.pas',
-  Infra.Migracao in 'src\Infra\Infra.Migracao.pas',
   Infra.Excecoes in 'src\Infra\Infra.Excecoes.pas',
   Infra.Senha in 'src\Infra\Infra.Senha.pas',
   Infra.Token in 'src\Infra\Infra.Token.pas',
@@ -37,7 +36,8 @@ uses
   Controller.Auth in 'src\Controllers\Controller.Auth.pas',
   Controller.Cliente in 'src\Controllers\Controller.Cliente.pas',
   Controller.Produto in 'src\Controllers\Controller.Produto.pas',
-  Controller.Pedido in 'src\Controllers\Controller.Pedido.pas';
+  Controller.Pedido in 'src\Controllers\Controller.Pedido.pas',
+  Infra.Migracao in 'src\Infra\Infra.Migracao.pas';
 
 var
   LScript: string;
