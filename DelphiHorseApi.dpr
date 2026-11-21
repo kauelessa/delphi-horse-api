@@ -51,6 +51,9 @@ begin
     TConfig.Carregar(TConfig.ArquivoPadrao);
     TConexao.Configurar(TConfig.Banco);
 
+    if TConfig.Migracao.CriarBanco then
+      TConexao.CriarBancoSeNaoExistir;
+
     if TConfig.Migracao.Executar then
       for LScript in TMigrador.Executar(TConfig.Migracao) do
         Writeln('Migração aplicada: ', ExtractFileName(LScript));

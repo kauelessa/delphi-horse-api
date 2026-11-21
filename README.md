@@ -46,18 +46,13 @@ delphi-horse-api/
 
 ## ▶️ Como executar
 
-1. Instale o [Firebird 5.0](https://firebirdsql.org/) (os scripts também funcionam no 3.0 e no 4.0) e crie um banco vazio, por exemplo pelo `isql`:
-   ```sql
-   CREATE DATABASE 'localhost:C:\Dados\DELPHI_HORSE_API.FDB'
-     USER 'SYSDBA' PASSWORD '<sua senha>' DEFAULT CHARACTER SET UTF8;
-   ```
-   As tabelas são criadas pela própria API na primeira execução (veja [Migrações](#migrações)).
+1. Instale o [Firebird 5.0](https://firebirdsql.org/) (os scripts também funcionam no 3.0 e no 4.0). Banco e tabelas podem ser criados pela própria API na primeira execução (veja [Migrações](#migrações)); basta a pasta do arquivo `.fdb` existir no servidor.
 2. Instale o [Boss](https://github.com/HashLoad/boss) e, na pasta do projeto (com o projeto **fechado** no RAD Studio), rode:
    ```
    boss install
    ```
    O Boss baixa as dependências em `modules/` e grava os caminhos no Search Path do `DelphiHorseApi.dproj`, que já vem versionado com esses caminhos.
-3. Copie `config.example.ini` para `config.ini` (na pasta do executável) e preencha a conexão com o banco e o `Segredo` do JWT (mínimo de 32 caracteres).
+3. Copie `config.example.ini` para `config.ini` (na pasta do executável) e preencha a conexão com o banco e o `Segredo` do JWT (mínimo de 32 caracteres). Em desenvolvimento, ligue `CriarBanco=1` e `ExecutarSeeds=1` na seção `[Migracao]` para subir com banco, tabelas e dados de exemplo prontos.
 4. Abra `DelphiHorseApi.dproj` no RAD Studio, compile e execute.
 5. A API sobe por padrão em `http://localhost:9000`.
 
@@ -65,7 +60,7 @@ Testes: abra `tests/DelphiHorseApiTests.dpr` (requer DUnitX, que já vem com o R
 
 ### Migrações
 
-Ao subir, a API aplica os scripts de `database/` que ainda não rodaram naquele banco, em ordem de nome, e registra cada um na tabela `SCHEMA_VERSAO`:
+Ao subir, a API cria o banco se ele não existir (com `CriarBanco=1`) e aplica os scripts de `database/` que ainda não rodaram naquele banco, em ordem de nome, e registra cada um na tabela `SCHEMA_VERSAO`:
 
 | Script | Conteúdo | Quando roda |
 |---|---|---|
@@ -78,6 +73,7 @@ Configuração na seção `[Migracao]` do `config.ini`:
 
 | Chave | Padrão | Descrição |
 |---|---|---|
+| `CriarBanco` | `0` | cria o arquivo do banco (charset UTF8) se ele não existir. Desligue em produção: um caminho errado criaria um banco vazio em vez de dar erro |
 | `Executar` | `1` | `0` desliga as migrações (o schema passa a ser responsabilidade de quem implanta) |
 | `ExecutarSeeds` | `0` | aplica os scripts com `_seed_` no nome. **Use só em desenvolvimento** |
 | `Pasta` | `database` | pasta dos scripts, absoluta ou relativa ao executável |

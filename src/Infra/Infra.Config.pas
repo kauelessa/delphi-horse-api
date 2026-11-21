@@ -17,6 +17,7 @@ type
   end;
 
   TConfigMigracao = record
+    CriarBanco: Boolean;
     Executar: Boolean;
     ExecutarSeeds: Boolean;
     { Caminho absoluto; no .ini pode ser relativo à pasta do executável. }
@@ -84,6 +85,7 @@ begin
     FJWT.Emissor := LIni.ReadString('JWT', 'Emissor', 'delphi-horse-api');
     FJWT.ExpiracaoMinutos := LIni.ReadInteger('JWT', 'ExpiracaoMinutos', 60);
 
+    FMigracao.CriarBanco := LIni.ReadBool('Migracao', 'CriarBanco', False);
     FMigracao.Executar := LIni.ReadBool('Migracao', 'Executar', True);
     FMigracao.ExecutarSeeds := LIni.ReadBool('Migracao', 'ExecutarSeeds', False);
     // TPath.Combine devolve o segundo caminho quando ele já é absoluto
