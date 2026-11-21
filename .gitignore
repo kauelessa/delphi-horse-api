@@ -86,3 +86,6 @@ config.ini
 
 # Dependências baixadas pelo Boss (restauradas com boss install)
 modules/
+
+# Saída dos testes DUnitX
+dunitx-results.xml

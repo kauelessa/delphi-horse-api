@@ -1,0 +1,16 @@
+{
+	"name": "delphi-horse-api",
+	"description": "API REST em Delphi com Horse, Firebird e autenticação JWT",
+	"version": "0.1.0",
+	"homepage": "https://github.com/kauelessa/delphi-horse-api",
+	"mainsrc": "src/",
+	"browsingpath": "",
+	"projects": [],
+	"dependencies": {
+		"github.com/hashload/handle-exception": "^0.2.1",
+		"github.com/hashload/horse": "^3.0.0",
+		"github.com/hashload/horse-cors": "^1.0.0",
+		"github.com/hashload/jhonson": "^1.0.0",
+		"github.com/paolo-rossi/delphi-jose-jwt": "^3.0.0"
+	}
+}

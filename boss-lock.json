@@ -1,0 +1,36 @@
+{
+	"hash": "d41d8cd98f00b204e9800998ecf8427e",
+	"updated": "2026-11-20T22:37:22-03:00",
+	"installedModules": {
+		"github.com/hashload/handle-exception": {
+			"name": "github_com_hashload_handle-exception",
+			"version": "0.2.1",
+			"hash": "0890ef500baa3f730bc7bc996051a187",
+			"artifacts": {}
+		},
+		"github.com/hashload/horse": {
+			"name": "github_com_hashload_horse",
+			"version": "3.3.16",
+			"hash": "93e06c19c2b74e37ed6fc5c70853dfc4",
+			"artifacts": {}
+		},
+		"github.com/hashload/horse-cors": {
+			"name": "github_com_hashload_horse-cors",
+			"version": "1.0.9",
+			"hash": "6d49c6b9b5b7c8cceeecfd3767abeb1f",
+			"artifacts": {}
+		},
+		"github.com/hashload/jhonson": {
+			"name": "github_com_hashload_jhonson",
+			"version": "1.2.5",
+			"hash": "5a116b8a6832a4ee5f061ef1ae18ebbe",
+			"artifacts": {}
+		},
+		"github.com/paolo-rossi/delphi-jose-jwt": {
+			"name": "github_com_paolo-rossi_delphi-jose-jwt",
+			"version": "v3.3.1",
+			"hash": "30168430005de681e90bef999de6804a",
+			"artifacts": {}
+		}
+	}
+}
