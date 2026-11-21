@@ -16,6 +16,13 @@ type
     BibliotecaCliente: string;
   end;
 
+  TConfigMigracao = record
+    Executar: Boolean;
+    ExecutarSeeds: Boolean;
+    { Caminho absoluto; no .ini pode ser relativo à pasta do executável. }
+    Pasta: string;
+  end;
+
   TConfigJWT = record
     Segredo: string;
     Emissor: string;
@@ -27,6 +34,7 @@ type
     class var FPortaServidor: Integer;
     class var FBanco: TConfigBanco;
     class var FJWT: TConfigJWT;
+    class var FMigracao: TConfigMigracao;
     class procedure Validar; static;
   public
     const TAMANHO_MINIMO_SEGREDO = 32;
@@ -37,13 +45,15 @@ type
     class property PortaServidor: Integer read FPortaServidor;
     class property Banco: TConfigBanco read FBanco;
     class property JWT: TConfigJWT read FJWT;
+    class property Migracao: TConfigMigracao read FMigracao;
   end;
 
 implementation
 
 uses
   System.SysUtils,
-  System.IniFiles;
+  System.IniFiles,
+  System.IOUtils;
 
 class function TConfig.ArquivoPadrao: string;
 begin
@@ -73,6 +83,12 @@ begin
     FJWT.Segredo := LIni.ReadString('JWT', 'Segredo', '');
     FJWT.Emissor := LIni.ReadString('JWT', 'Emissor', 'delphi-horse-api');
     FJWT.ExpiracaoMinutos := LIni.ReadInteger('JWT', 'ExpiracaoMinutos', 60);
+
+    FMigracao.Executar := LIni.ReadBool('Migracao', 'Executar', True);
+    FMigracao.ExecutarSeeds := LIni.ReadBool('Migracao', 'ExecutarSeeds', False);
+    // TPath.Combine devolve o segundo caminho quando ele já é absoluto
+    FMigracao.Pasta := TPath.Combine(ExtractFilePath(ParamStr(0)),
+      LIni.ReadString('Migracao', 'Pasta', 'database'));
   finally
     LIni.Free;
   end;

@@ -46,11 +46,12 @@ delphi-horse-api/
 
 ## ▶️ Como executar
 
-1. Instale o [Firebird 5.0](https://firebirdsql.org/), crie o banco e execute os scripts de `database/` em ordem:
-   - `001_create_tables.sql` — usuários
-   - `002_seed_usuario_admin.sql` — usuário `admin` / senha `admin123` (**apenas desenvolvimento**)
-   - `003_create_tables_vendas.sql` — clientes, produtos e pedidos
-   - `004_seed_dados_exemplo.sql` — clientes e produtos de exemplo (opcional)
+1. Instale o [Firebird 5.0](https://firebirdsql.org/) (os scripts também funcionam no 3.0 e no 4.0) e crie um banco vazio, por exemplo pelo `isql`:
+   ```sql
+   CREATE DATABASE 'localhost:C:\Dados\DELPHI_HORSE_API.FDB'
+     USER 'SYSDBA' PASSWORD '<sua senha>' DEFAULT CHARACTER SET UTF8;
+   ```
+   As tabelas são criadas pela própria API na primeira execução (veja [Migrações](#migrações)).
 2. Instale o [Boss](https://github.com/HashLoad/boss) e, na pasta do projeto (com o projeto **fechado** no RAD Studio), rode:
    ```
    boss install
@@ -61,6 +62,27 @@ delphi-horse-api/
 5. A API sobe por padrão em `http://localhost:9000`.
 
 Testes: abra `tests/DelphiHorseApiTests.dpr` (requer DUnitX, que já vem com o RAD Studio) e execute. Os testes não usam Horse nem JWT, então não dependem de `modules/`.
+
+### Migrações
+
+Ao subir, a API aplica os scripts de `database/` que ainda não rodaram naquele banco, em ordem de nome, e registra cada um na tabela `SCHEMA_VERSAO`:
+
+| Script | Conteúdo | Quando roda |
+|---|---|---|
+| `001_create_tables.sql` | usuários | sempre |
+| `002_seed_usuario_admin.sql` | usuário `admin` / senha `admin123` | só com `ExecutarSeeds=1` |
+| `003_create_tables_vendas.sql` | clientes, produtos e pedidos | sempre |
+| `004_seed_dados_exemplo.sql` | clientes e produtos de exemplo | só com `ExecutarSeeds=1` |
+
+Configuração na seção `[Migracao]` do `config.ini`:
+
+| Chave | Padrão | Descrição |
+|---|---|---|
+| `Executar` | `1` | `0` desliga as migrações (o schema passa a ser responsabilidade de quem implanta) |
+| `ExecutarSeeds` | `0` | aplica os scripts com `_seed_` no nome. **Use só em desenvolvimento** |
+| `Pasta` | `database` | pasta dos scripts, absoluta ou relativa ao executável |
+
+Regras: um script já aplicado nunca roda de novo, então mudanças no banco vão sempre em um **script novo** com o próximo número. Um seed pulado não é registrado; se `ExecutarSeeds` for ligado depois, ele roda na próxima subida. Se um script falhar, a API não sobe e mostra o erro.
 
 #### Problemas comuns na instalação
 
@@ -107,6 +129,7 @@ curl -X POST http://localhost:9000/pedidos   -H "Authorization: Bearer <token>" 
   ]
 }
 ```
+
 
 ### Listagens paginadas
 

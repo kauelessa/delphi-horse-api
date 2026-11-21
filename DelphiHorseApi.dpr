@@ -17,6 +17,7 @@ uses
   Model.Documento in 'src\Models\Model.Documento.pas',
   Infra.Config in 'src\Infra\Infra.Config.pas',
   Infra.Conexao in 'src\Infra\Infra.Conexao.pas',
+  Infra.Migracao in 'src\Infra\Infra.Migracao.pas',
   Infra.Excecoes in 'src\Infra\Infra.Excecoes.pas',
   Infra.Senha in 'src\Infra\Infra.Senha.pas',
   Infra.Token in 'src\Infra\Infra.Token.pas',
@@ -38,6 +39,9 @@ uses
   Controller.Produto in 'src\Controllers\Controller.Produto.pas',
   Controller.Pedido in 'src\Controllers\Controller.Pedido.pas';
 
+var
+  LScript: string;
+
 begin
   {$IFDEF DEBUG}
   ReportMemoryLeaksOnShutdown := True;
@@ -46,6 +50,10 @@ begin
   try
     TConfig.Carregar(TConfig.ArquivoPadrao);
     TConexao.Configurar(TConfig.Banco);
+
+    if TConfig.Migracao.Executar then
+      for LScript in TMigrador.Executar(TConfig.Migracao) do
+        Writeln('Migração aplicada: ', ExtractFileName(LScript));
   except
     on E: Exception do
     begin
