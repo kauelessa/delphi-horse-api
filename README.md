@@ -41,7 +41,7 @@ delphi-horse-api/
 ├── database/          # Scripts SQL de criação do banco
 ├── tests/             # Testes unitários (DUnitX)
 └── docs/
-    └── screenshots/   # Prints e exemplos de requisições
+    └── exemplos/      # Corpos de requisição JSON (válidos e inválidos)
 ```
 
 ## ▶️ Como executar
