@@ -1,11 +1,10 @@
 /*
   001 - Criação das tabelas iniciais
-  Banco: Firebird 5.0
+  Banco: Firebird 5.0 (compatível com 3.0 ou superior)
 
-  Crie o banco antes de executar, por exemplo pelo isql:
-    CREATE DATABASE 'localhost:C:\dados\DELPHI_HORSE_API.FDB'
-      USER 'SYSDBA' PASSWORD '<sua senha>'
-      DEFAULT CHARACTER SET UTF8;
+  Aplicado automaticamente pela API ao subir (Infra.Migracao), que grava o nome
+  do script na tabela SCHEMA_VERSAO. O banco é criado pela própria API com
+  [Migracao] CriarBanco=1 no config.ini.
 */
 
 CREATE TABLE USUARIOS (
