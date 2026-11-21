@@ -11,9 +11,10 @@
   admin/admin123) e só rodam com [Migracao] ExecutarSeeds=1. Um seed pulado
   não é registrado: se a opção for ligada depois, ele roda na próxima subida.
 
-  Os scripts terminam com COMMIT próprio, então uma falha no meio de um
-  script pode deixar parte dele aplicada. Nesse caso a API não sobe, mostra
-  o erro, e o script não é marcado como aplicado. }
+  Cada script roda dentro de uma transação explícita. Como os scripts
+  terminam com COMMIT próprio (para também rodarem no isql), uma falha no
+  meio de um script pode deixar parte dele aplicada. Nesse caso a API não
+  sobe, mostra o erro, e o script não é marcado como aplicado. }
 
 interface
 
@@ -136,9 +137,23 @@ begin
 
     for LArquivo in Result do
     begin
-      AplicarScript(LCon, LArquivo);
-      LCon.ExecSQL('INSERT INTO SCHEMA_VERSAO (SCRIPT) VALUES (:SCRIPT)',
-        [ExtractFileName(LArquivo)]);
+      // Transação explícita é obrigatória: no autocommit cada comando já é
+      // confirmado sozinho, e o COMMIT do script chega ao Firebird sem
+      // transação aberta ("invalid transaction handle").
+      LCon.StartTransaction;
+      try
+        AplicarScript(LCon, LArquivo);
+        // se o script não terminar com COMMIT, o registro entra junto com ele
+        if not LCon.InTransaction then
+          LCon.StartTransaction;
+        LCon.ExecSQL('INSERT INTO SCHEMA_VERSAO (SCRIPT) VALUES (:SCRIPT)',
+          [ExtractFileName(LArquivo)]);
+        LCon.Commit;
+      except
+        if LCon.InTransaction then
+          LCon.Rollback;
+        raise;
+      end;
     end;
   finally
     LCon.Free;
