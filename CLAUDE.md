@@ -12,7 +12,7 @@ API REST em Delphi usando o framework Horse e banco Firebird 5.0. Faz parte do p
 - Não altere manualmente `.dproj`, `.res` ou `.dfm`, a menos que seja pedido explicitamente. Se uma unit nova precisar ser adicionada ao projeto, avise para incluí-la pelo RAD Studio (ou atualize o `uses` do `.dpr` e informe).
 - Codificação: todo `.pas` e `.dpr` deve ser salvo em **UTF-8 com BOM**. Sem o BOM, o compilador do Delphi lê o arquivo como ANSI (Windows-1252) e corrompe strings acentuadas (`'Configuração'` vira `'ConfiguraÃ§Ã£o'`). Ao criar um arquivo novo, garanta o BOM (`EF BB BF`) no início; ao editar, preserve-o.
 - Dependências gerenciadas pelo Boss (`boss.json`). Não versionar a pasta `modules/`.
-- Banco: Firebird 5.0 via FireDAC. Scripts SQL ficam em `database/`, numerados (`001_create_tables.sql`, `002_...`).
+- Banco: Firebird 5.0 via FireDAC. Scripts SQL ficam em `database/`, numerados (`001_create_tables.sql`, `002_...`). Migrações automáticas: veja a seção "Banco e migrações".
 
 ## Arquitetura
 
@@ -25,6 +25,14 @@ Camadas, em `src/`:
 - `Infra/` — conexão, configuração (arquivo `.ini`/`.env`), logs e utilitários.
 
 Use interfaces (`IClienteService`, `IClienteRepository`) para permitir testes com DUnitX.
+
+## Banco e migrações
+
+- O banco é criado e atualizado pelo próprio sistema ao subir a API (`Infra.Migracao`): os scripts de `database/` rodam em ordem de nome e cada script aplicado é gravado na tabela `SCHEMA_VERSAO`, para nunca rodar de novo.
+- **Nunca altere um script já versionado**: toda mudança de estrutura ou de dados vai num script novo, com o próximo número (`005_...sql`).
+- Scripts com `_seed_` no nome são dados de exemplo e só rodam com `ExecutarSeeds=1` no `config.ini`. Use apenas dados fictícios. Dados que o sistema precisa para funcionar (ex.: tabelas de domínio) vão em script normal, sem `_seed_`.
+- Cada script termina com `COMMIT;` (para rodar também no isql), é salvo em UTF-8 e usa sintaxe compatível com Firebird 3.0 ou superior. Não use `CREATE DATABASE` nem `SET SQL DIALECT`: a criação do banco é feita pelo sistema (`CriarBanco=1`).
+- Ao adicionar um script, atualize a tabela da seção Migrações do `README.md`.
 
 ## Padrões de código
 
