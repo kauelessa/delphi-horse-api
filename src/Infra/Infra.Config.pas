@@ -1,4 +1,4 @@
-unit Infra.Config;
+﻿unit Infra.Config;
 
 { Configuração da aplicação, lida uma única vez na inicialização a partir
   do config.ini. Depois de carregada é somente leitura, portanto segura

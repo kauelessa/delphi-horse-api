@@ -1,4 +1,4 @@
-unit Tests.Infra.Senha;
+﻿unit Tests.Infra.Senha;
 
 interface
 

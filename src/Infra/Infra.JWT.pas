@@ -1,4 +1,4 @@
-unit Infra.JWT;
+﻿unit Infra.JWT;
 
 { Geração e validação de tokens JWT assinados com HS256
   (biblioteca delphi-jose-jwt). }

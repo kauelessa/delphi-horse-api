@@ -1,4 +1,4 @@
-unit Model.Documento;
+﻿unit Model.Documento;
 
 { Validação de CPF e CNPJ pelos dígitos verificadores (módulo 11).
 

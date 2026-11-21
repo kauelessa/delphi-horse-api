@@ -1,4 +1,4 @@
-unit Infra.Excecoes;
+﻿unit Infra.Excecoes;
 
 // Exceções da aplicação. Cada uma carrega o status HTTP correspondente,
 // que o middleware Infra.Middleware.Erros usa para montar a resposta

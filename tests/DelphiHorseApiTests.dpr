@@ -1,4 +1,4 @@
-program DelphiHorseApiTests;
+﻿program DelphiHorseApiTests;
 
 {$APPTYPE CONSOLE}
 {$STRONGLINKTYPES ON}

@@ -1,4 +1,4 @@
-unit Model.Paginacao;
+﻿unit Model.Paginacao;
 
 interface
 

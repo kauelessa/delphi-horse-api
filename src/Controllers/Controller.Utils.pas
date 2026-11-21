@@ -1,4 +1,4 @@
-unit Controller.Utils;
+﻿unit Controller.Utils;
 
 // Funções de apoio dos controllers: leitura de parâmetros/corpo e montagem
 // de respostas. Erros de formato viram 400 aqui mesmo, antes de chegar no Service.

@@ -1,4 +1,4 @@
-unit Infra.Senha;
+﻿unit Infra.Senha;
 
 { Hash de senhas com PBKDF2-HMAC-SHA256 e salt aleatório.
 

@@ -1,4 +1,4 @@
-unit Infra.Middleware.Autenticacao;
+﻿unit Infra.Middleware.Autenticacao;
 
 // Middleware de autenticação por Bearer token (JWT).
 //

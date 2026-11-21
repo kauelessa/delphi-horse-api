@@ -1,4 +1,4 @@
-unit Infra.Middleware.Erros;
+﻿unit Infra.Middleware.Erros;
 
 // Middleware que converte exceções em respostas JSON padronizadas:
 //   { "erro": "mensagem" }

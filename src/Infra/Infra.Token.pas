@@ -1,4 +1,4 @@
-unit Infra.Token;
+﻿unit Infra.Token;
 
 { Abstração do gerador de tokens de acesso. Fica separada da implementação
   JWT (Infra.JWT) para que os testes de Service não dependam da biblioteca

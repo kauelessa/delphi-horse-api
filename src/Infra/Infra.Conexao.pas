@@ -1,4 +1,4 @@
-unit Infra.Conexao;
+﻿unit Infra.Conexao;
 
 { Fábrica de conexões FireDAC com Firebird.
 

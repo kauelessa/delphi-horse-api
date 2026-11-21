@@ -1,4 +1,4 @@
-unit Tests.Fakes;
+﻿unit Tests.Fakes;
 
 { Repositórios em memória para os testes de Service.
   Seguem o mesmo contrato dos reais: devolvem cópias (o chamador libera)
