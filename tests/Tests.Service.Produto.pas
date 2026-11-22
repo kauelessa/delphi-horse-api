@@ -42,6 +42,18 @@ type
     procedure Excluir_Inexistente_LevantaNaoEncontrado;
     [Test]
     procedure Excluir_InativaProduto;
+    [Test]
+    procedure Criar_CodigoBarrasInvalido_LevantaRegraNegocio;
+    [Test]
+    procedure Criar_SemCodigoBarras_Aceita;
+    [Test]
+    procedure Criar_CodigoBarrasDeOutroProduto_LevantaRegraNegocio;
+    [Test]
+    procedure Atualizar_MantendoOProprioCodigo_Aceita;
+    [Test]
+    procedure BuscarPorCodigoBarras_Existente_DevolveProduto;
+    [Test]
+    procedure BuscarPorCodigoBarras_Inexistente_LevantaNaoEncontrado;
   end;
 
 implementation
@@ -148,6 +160,100 @@ begin
   LId := FRepositorio.Adicionar('Teclado', 349.90, 10);
   FService.Excluir(LId);
   Assert.IsFalse(FRepositorio.Obter(LId).Ativo);
+end;
+
+procedure TTestsProdutoService.Criar_CodigoBarrasInvalido_LevantaRegraNegocio;
+var
+  LProduto: TProduto;
+begin
+  LProduto := NovoProduto('Teclado', 10, 1);
+  LProduto.CodigoBarras := '7891000315508';
+  try
+    Assert.WillRaiseWithMessage(
+      procedure
+      begin
+        FService.Criar(LProduto);
+      end,
+      ERegraNegocio, 'Código de barras inválido.');
+  finally
+    LProduto.Free;
+  end;
+end;
+
+procedure TTestsProdutoService.Criar_SemCodigoBarras_Aceita;
+var
+  LProduto: TProduto;
+begin
+  LProduto := NovoProduto('Teclado', 10, 1);
+  LProduto.CodigoBarras := '  ';
+  try
+    FService.Criar(LProduto);
+    Assert.AreEqual('', FRepositorio.Obter(LProduto.Id).CodigoBarras);
+  finally
+    LProduto.Free;
+  end;
+end;
+
+procedure TTestsProdutoService.Criar_CodigoBarrasDeOutroProduto_LevantaRegraNegocio;
+var
+  LId: Integer;
+  LProduto: TProduto;
+begin
+  LId := FRepositorio.Adicionar('Mouse', 129.90, 5);
+  FRepositorio.Obter(LId).CodigoBarras := '7891000000021';
+  LProduto := NovoProduto('Teclado', 10, 1);
+  LProduto.CodigoBarras := ' 7891000000021 ';
+  try
+    Assert.WillRaiseWithMessage(
+      procedure
+      begin
+        FService.Criar(LProduto);
+      end,
+      ERegraNegocio, Format('Código de barras já usado pelo produto %d.', [LId]));
+  finally
+    LProduto.Free;
+  end;
+end;
+
+procedure TTestsProdutoService.Atualizar_MantendoOProprioCodigo_Aceita;
+var
+  LProduto: TProduto;
+begin
+  LProduto := NovoProduto('Mouse', 139.90, 5);
+  try
+    LProduto.Id := FRepositorio.Adicionar('Mouse', 129.90, 5);
+    FRepositorio.Obter(LProduto.Id).CodigoBarras := '7891000000021';
+    LProduto.CodigoBarras := '7891000000021';
+    FService.Atualizar(LProduto);
+    Assert.AreEqual<Currency>(139.90, FRepositorio.Obter(LProduto.Id).Preco);
+  finally
+    LProduto.Free;
+  end;
+end;
+
+procedure TTestsProdutoService.BuscarPorCodigoBarras_Existente_DevolveProduto;
+var
+  LId: Integer;
+  LProduto: TProduto;
+begin
+  LId := FRepositorio.Adicionar('Mouse', 129.90, 5);
+  FRepositorio.Obter(LId).CodigoBarras := '7891000000021';
+  LProduto := FService.BuscarPorCodigoBarras(' 7891000000021');
+  try
+    Assert.AreEqual(LId, LProduto.Id);
+  finally
+    LProduto.Free;
+  end;
+end;
+
+procedure TTestsProdutoService.BuscarPorCodigoBarras_Inexistente_LevantaNaoEncontrado;
+begin
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      FService.BuscarPorCodigoBarras('7891000000014');
+    end,
+    ENaoEncontrado, 'Nenhum produto com o código 7891000000014.');
 end;
 
 procedure TTestsProdutoService.Listar_RepassaBuscaSemEspacosAoRepositorio;

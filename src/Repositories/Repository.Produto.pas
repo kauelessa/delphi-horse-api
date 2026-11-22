@@ -10,6 +10,9 @@ type
     ['{4C1E6B2A-8D3F-4E57-9A06-2B7C5D9E1F34}']
     function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto; // só ativos; nil se não achar
+    function BuscarPorCodigoBarras(const ACodigo: string): TProduto; // só ativos; nil se não achar
+    // id do produto (ativo ou não) que já usa o código; 0 se livre
+    function CodigoBarrasEmUso(const ACodigo: string; AIgnorarId: Integer): Integer;
     procedure Inserir(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
     procedure Inativar(AId: Integer);
@@ -19,6 +22,8 @@ type
   public
     function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto;
+    function BuscarPorCodigoBarras(const ACodigo: string): TProduto;
+    function CodigoBarrasEmUso(const ACodigo: string; AIgnorarId: Integer): Integer;
     procedure Inserir(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
     procedure Inativar(AId: Integer);
@@ -29,7 +34,19 @@ type
 implementation
 
 uses
-  System.SysUtils, FireDAC.Comp.Client, FireDAC.Stan.Param, Infra.Conexao;
+  System.SysUtils, System.Variants, Data.DB, FireDAC.Comp.Client, FireDAC.Stan.Param, Infra.Conexao;
+
+const
+  CAMPOS = 'ID, DESCRICAO, PRECO, ESTOQUE, CODIGO_BARRAS, ATIVO';
+
+// vazio grava NULL: o índice único aceita vários NULL, mas não vários ''
+function CodigoOuNulo(const ACodigo: string): Variant;
+begin
+  if ACodigo = '' then
+    Result := Null
+  else
+    Result := ACodigo;
+end;
 
 function LerProduto(AQry: TFDQuery): TProduto;
 begin
@@ -38,6 +55,7 @@ begin
   Result.Descricao := AQry.FieldByName('DESCRICAO').AsString;
   Result.Preco := AQry.FieldByName('PRECO').AsCurrency;
   Result.Estoque := AQry.FieldByName('ESTOQUE').AsInteger;
+  Result.CodigoBarras := Trim(AQry.FieldByName('CODIGO_BARRAS').AsString);
   Result.Ativo := AQry.FieldByName('ATIVO').AsBoolean;
 end;
 
@@ -46,7 +64,7 @@ begin
   Result := 'WHERE ATIVO = TRUE';
   ABuscaParam := Trim(ABusca);
   if ABuscaParam <> '' then
-    Result := Result + ' AND DESCRICAO CONTAINING :BUSCA';
+    Result := Result + ' AND (DESCRICAO CONTAINING :BUSCA OR CODIGO_BARRAS = :BUSCA_CODIGO)';
 end;
 
 function TProdutoRepository.Listar(const APaginacao: TPaginacao; const ABusca: string;
@@ -65,16 +83,22 @@ begin
       LQry.Connection := LCon;
       LQry.SQL.Text := 'SELECT COUNT(*) FROM PRODUTOS ' + LWhere;
       if LBusca <> '' then
+      begin
         LQry.ParamByName('BUSCA').AsString := LBusca;
+        LQry.ParamByName('BUSCA_CODIGO').AsString := Copy(LBusca, 1, 14);
+      end;
       LQry.Open;
       ATotal := LQry.Fields[0].AsInteger;
       LQry.Close;
 
       LQry.SQL.Text :=
-        'SELECT ID, DESCRICAO, PRECO, ESTOQUE, ATIVO FROM PRODUTOS ' + LWhere +
+        'SELECT ' + CAMPOS + ' FROM PRODUTOS ' + LWhere +
         ' ORDER BY DESCRICAO OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
       if LBusca <> '' then
+      begin
         LQry.ParamByName('BUSCA').AsString := LBusca;
+        LQry.ParamByName('BUSCA_CODIGO').AsString := Copy(LBusca, 1, 14);
+      end;
       LQry.ParamByName('OFFSET').AsInteger := APaginacao.Offset;
       LQry.ParamByName('LIMITE').AsInteger := APaginacao.Limite;
       LQry.Open;
@@ -103,11 +127,45 @@ begin
   LQry := TFDQuery.Create(nil);
   try
     LQry.Connection := LCon;
-    LQry.Open('SELECT ID, DESCRICAO, PRECO, ESTOQUE, ATIVO FROM PRODUTOS WHERE ID = :ID AND ATIVO = TRUE', [AId]);
+    LQry.Open('SELECT ' + CAMPOS + ' FROM PRODUTOS WHERE ID = :ID AND ATIVO = TRUE', [AId]);
     if not LQry.IsEmpty then
       Result := LerProduto(LQry);
   finally
     LQry.Free;
+    LCon.Free;
+  end;
+end;
+
+function TProdutoRepository.BuscarPorCodigoBarras(const ACodigo: string): TProduto;
+var
+  LCon: TFDConnection;
+  LQry: TFDQuery;
+begin
+  Result := nil;
+  LCon := TConexao.Criar;
+  LQry := TFDQuery.Create(nil);
+  try
+    LQry.Connection := LCon;
+    LQry.Open('SELECT ' + CAMPOS + ' FROM PRODUTOS WHERE CODIGO_BARRAS = :CODIGO AND ATIVO = TRUE', [ACodigo]);
+    if not LQry.IsEmpty then
+      Result := LerProduto(LQry);
+  finally
+    LQry.Free;
+    LCon.Free;
+  end;
+end;
+
+function TProdutoRepository.CodigoBarrasEmUso(const ACodigo: string; AIgnorarId: Integer): Integer;
+var
+  LCon: TFDConnection;
+begin
+  LCon := TConexao.Criar;
+  try
+    // inativo também conta: o índice único do banco não olha o ATIVO
+    Result := LCon.ExecSQLScalar(
+      'SELECT COALESCE(MAX(ID), 0) FROM PRODUTOS WHERE CODIGO_BARRAS = :CODIGO AND ID <> :ID',
+      [ACodigo, AIgnorarId]);
+  finally
     LCon.Free;
   end;
 end;
@@ -122,8 +180,9 @@ begin
   try
     LQry.Connection := LCon;
     LQry.Open(
-      'INSERT INTO PRODUTOS (DESCRICAO, PRECO, ESTOQUE) VALUES (:DESCRICAO, :PRECO, :ESTOQUE) RETURNING ID',
-      [AProduto.Descricao, AProduto.Preco, AProduto.Estoque]);
+      'INSERT INTO PRODUTOS (DESCRICAO, PRECO, ESTOQUE, CODIGO_BARRAS) ' +
+      'VALUES (:DESCRICAO, :PRECO, :ESTOQUE, :CODIGO_BARRAS) RETURNING ID',
+      [AProduto.Descricao, AProduto.Preco, AProduto.Estoque, CodigoOuNulo(AProduto.CodigoBarras)]);
     AProduto.Id := LQry.FieldByName('ID').AsInteger;
   finally
     LQry.Free;
@@ -138,8 +197,9 @@ begin
   LCon := TConexao.Criar;
   try
     LCon.ExecSQL(
-      'UPDATE PRODUTOS SET DESCRICAO = :DESCRICAO, PRECO = :PRECO, ESTOQUE = :ESTOQUE WHERE ID = :ID',
-      [AProduto.Descricao, AProduto.Preco, AProduto.Estoque, AProduto.Id]);
+      'UPDATE PRODUTOS SET DESCRICAO = :DESCRICAO, PRECO = :PRECO, ESTOQUE = :ESTOQUE, ' +
+      'CODIGO_BARRAS = :CODIGO_BARRAS WHERE ID = :ID',
+      [AProduto.Descricao, AProduto.Preco, AProduto.Estoque, CodigoOuNulo(AProduto.CodigoBarras), AProduto.Id]);
   finally
     LCon.Free;
   end;

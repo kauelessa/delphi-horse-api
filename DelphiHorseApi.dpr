@@ -16,6 +16,7 @@ uses
   Model.Paginacao in 'src\Models\Model.Paginacao.pas',
   Model.Documento in 'src\Models\Model.Documento.pas',
   Model.Sessao in 'src\Models\Model.Sessao.pas',
+  Model.CodigoBarras in 'src\Models\Model.CodigoBarras.pas',
   Infra.Config in 'src\Infra\Infra.Config.pas',
   Infra.Conexao in 'src\Infra\Infra.Conexao.pas',
   Infra.Excecoes in 'src\Infra\Infra.Excecoes.pas',

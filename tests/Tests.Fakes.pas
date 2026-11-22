@@ -56,6 +56,8 @@ type
 
     function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto;
+    function BuscarPorCodigoBarras(const ACodigo: string): TProduto;
+    function CodigoBarrasEmUso(const ACodigo: string; AIgnorarId: Integer): Integer;
     procedure Inserir(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
     procedure Inativar(AId: Integer);
@@ -119,6 +121,7 @@ begin
   Result.Descricao := AOrigem.Descricao;
   Result.Preco := AOrigem.Preco;
   Result.Estoque := AOrigem.Estoque;
+  Result.CodigoBarras := AOrigem.CodigoBarras;
   Result.Ativo := AOrigem.Ativo;
 end;
 
@@ -314,6 +317,26 @@ begin
   Result := ClonarProduto(LProduto);
 end;
 
+function TProdutoRepositoryFake.BuscarPorCodigoBarras(const ACodigo: string): TProduto;
+var
+  LProduto: TProduto;
+begin
+  for LProduto in FProdutos do
+    if LProduto.Ativo and (LProduto.CodigoBarras <> '') and (LProduto.CodigoBarras = ACodigo) then
+      Exit(ClonarProduto(LProduto));
+  Result := nil;
+end;
+
+function TProdutoRepositoryFake.CodigoBarrasEmUso(const ACodigo: string; AIgnorarId: Integer): Integer;
+var
+  LProduto: TProduto;
+begin
+  for LProduto in FProdutos do
+    if (LProduto.Id <> AIgnorarId) and (LProduto.CodigoBarras = ACodigo) then
+      Exit(LProduto.Id);
+  Result := 0;
+end;
+
 procedure TProdutoRepositoryFake.Inserir(AProduto: TProduto);
 begin
   AProduto.Id := FProximoId;
@@ -329,6 +352,7 @@ begin
   LProduto.Descricao := AProduto.Descricao;
   LProduto.Preco := AProduto.Preco;
   LProduto.Estoque := AProduto.Estoque;
+  LProduto.CodigoBarras := AProduto.CodigoBarras;
   LProduto.Ativo := AProduto.Ativo;
 end;
 

@@ -15,6 +15,7 @@ uses
   Model.Paginacao in '..\src\Models\Model.Paginacao.pas',
   Model.Documento in '..\src\Models\Model.Documento.pas',
   Model.Sessao in '..\src\Models\Model.Sessao.pas',
+  Model.CodigoBarras in '..\src\Models\Model.CodigoBarras.pas',
   Infra.Config in '..\src\Infra\Infra.Config.pas',
   Infra.Conexao in '..\src\Infra\Infra.Conexao.pas',
   Infra.Migracao in '..\src\Infra\Infra.Migracao.pas',
@@ -40,7 +41,8 @@ uses
   Tests.Service.Produto in 'Tests.Service.Produto.pas',
   Tests.Service.Pedido in 'Tests.Service.Pedido.pas',
   Tests.Repository.Filtro in 'Tests.Repository.Filtro.pas',
-  Tests.Infra.JWT in 'Tests.Infra.JWT.pas';
+  Tests.Infra.JWT in 'Tests.Infra.JWT.pas',
+  Tests.Model.CodigoBarras in 'Tests.Model.CodigoBarras.pas';
 
 var
   LRunner: ITestRunner;

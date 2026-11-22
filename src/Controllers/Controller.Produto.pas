@@ -25,7 +25,8 @@ begin
     .AddPair('id', TJSONNumber.Create(AProduto.Id))
     .AddPair('descricao', AProduto.Descricao)
     .AddPair('preco', NumeroJSON(AProduto.Preco))
-    .AddPair('estoque', TJSONNumber.Create(AProduto.Estoque));
+    .AddPair('estoque', TJSONNumber.Create(AProduto.Estoque))
+    .AddPair('codigoBarras', AProduto.CodigoBarras);
 end;
 
 function DoBody(AReq: THorseRequest): TProduto;
@@ -38,6 +39,7 @@ begin
     Result.Descricao := LerTexto(LJson, 'descricao');
     Result.Preco := LerValor(LJson, 'preco');
     Result.Estoque := LerInteiro(LJson, 'estoque');
+    Result.CodigoBarras := LerTexto(LJson, 'codigoBarras');
   except
     Result.Free;
     raise;
@@ -80,6 +82,20 @@ begin
           LProduto.Free;
         end;
       end);
+
+  // antes de /produtos/:id; "codigo" não é número, então não conflita
+  THorse.Get('/produtos/codigo/:codigo',
+    procedure(AReq: THorseRequest; ARes: THorseResponse)
+    var
+      LProduto: TProduto;
+    begin
+      LProduto := NovoService.BuscarPorCodigoBarras(AReq.Params.Field('codigo').AsString);
+      try
+        ARes.Send<TJSONObject>(ParaJSON(LProduto));
+      finally
+        LProduto.Free;
+      end;
+    end);
 
   THorse.Route('/produtos/:id')
     .Get(

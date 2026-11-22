@@ -159,6 +159,7 @@
         <DCCReference Include="..\src\Models\Model.Paginacao.pas"/>
         <DCCReference Include="..\src\Models\Model.Documento.pas"/>
         <DCCReference Include="..\src\Models\Model.Sessao.pas"/>
+        <DCCReference Include="..\src\Models\Model.CodigoBarras.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Config.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Conexao.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Migracao.pas"/>
@@ -185,6 +186,7 @@
         <DCCReference Include="Tests.Service.Pedido.pas"/>
         <DCCReference Include="Tests.Repository.Filtro.pas"/>
         <DCCReference Include="Tests.Infra.JWT.pas"/>
+        <DCCReference Include="Tests.Model.CodigoBarras.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -94,7 +94,8 @@ procedure TTestsFiltroBusca.Produto_BuscaTexto_FiltraDescricao;
 var
   LBusca: string;
 begin
-  Assert.AreEqual('WHERE ATIVO = TRUE AND DESCRICAO CONTAINING :BUSCA', TProdutoRepository.Filtro(' São Paulo ', LBusca));
+  Assert.AreEqual('WHERE ATIVO = TRUE AND (DESCRICAO CONTAINING :BUSCA OR CODIGO_BARRAS = :BUSCA_CODIGO)',
+    TProdutoRepository.Filtro(' São Paulo ', LBusca));
   Assert.AreEqual('São Paulo', LBusca);
 end;
 

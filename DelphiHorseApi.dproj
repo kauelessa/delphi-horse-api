@@ -127,6 +127,7 @@
         <DCCReference Include="src\Models\Model.Paginacao.pas"/>
         <DCCReference Include="src\Models\Model.Documento.pas"/>
         <DCCReference Include="src\Models\Model.Sessao.pas"/>
+        <DCCReference Include="src\Models\Model.CodigoBarras.pas"/>
         <DCCReference Include="src\Infra\Infra.Config.pas"/>
         <DCCReference Include="src\Infra\Infra.Conexao.pas"/>
         <DCCReference Include="src\Infra\Infra.Excecoes.pas"/>
