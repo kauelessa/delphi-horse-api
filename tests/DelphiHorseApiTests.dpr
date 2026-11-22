@@ -20,6 +20,7 @@ uses
   Infra.Excecoes in '..\src\Infra\Infra.Excecoes.pas',
   Infra.Senha in '..\src\Infra\Infra.Senha.pas',
   Infra.Token in '..\src\Infra\Infra.Token.pas',
+  Infra.JWT in '..\src\Infra\Infra.JWT.pas',
   Repository.Usuario in '..\src\Repositories\Repository.Usuario.pas',
   Repository.Cliente in '..\src\Repositories\Repository.Cliente.pas',
   Repository.Produto in '..\src\Repositories\Repository.Produto.pas',
@@ -36,7 +37,8 @@ uses
   Tests.Service.Cliente in 'Tests.Service.Cliente.pas',
   Tests.Service.Produto in 'Tests.Service.Produto.pas',
   Tests.Service.Pedido in 'Tests.Service.Pedido.pas',
-  Tests.Repository.Filtro in 'Tests.Repository.Filtro.pas';
+  Tests.Repository.Filtro in 'Tests.Repository.Filtro.pas',
+  Tests.Infra.JWT in 'Tests.Infra.JWT.pas';
 
 var
   LRunner: ITestRunner;

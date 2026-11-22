@@ -62,6 +62,7 @@
         <DCC_S>false</DCC_S>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <SanitizedProjectName>DelphiHorseApiTests</SanitizedProjectName>
+        <DCC_UnitSearchPath>..\modules\github_com_paolo-rossi_delphi-jose-jwt\Source\Common;..\modules\github_com_paolo-rossi_delphi-jose-jwt\Source\JOSE;..\modules\github_com_paolo-rossi_delphi-jose-jwt\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Locale>1046</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;CFBundleName=</VerInfo_Keys>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
@@ -163,6 +164,7 @@
         <DCCReference Include="..\src\Infra\Infra.Excecoes.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Senha.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Token.pas"/>
+        <DCCReference Include="..\src\Infra\Infra.JWT.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Usuario.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Cliente.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Produto.pas"/>
@@ -179,6 +181,8 @@
         <DCCReference Include="Tests.Service.Cliente.pas"/>
         <DCCReference Include="Tests.Service.Produto.pas"/>
         <DCCReference Include="Tests.Service.Pedido.pas"/>
+        <DCCReference Include="Tests.Repository.Filtro.pas"/>
+        <DCCReference Include="Tests.Infra.JWT.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

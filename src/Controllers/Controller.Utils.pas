@@ -11,6 +11,7 @@ uses
 function IdDaRota(AReq: THorseRequest): Integer;
 function PaginacaoDaQuery(AReq: THorseRequest): TPaginacao;
 function CorpoJSON(AReq: THorseRequest): TJSONObject;
+function UsuarioLogado(AReq: THorseRequest): Integer; // 0 em rota pública
 
 // campo ausente ou null devolve vazio/zero; tipo errado levanta 400
 function LerTexto(AJson: TJSONObject; const ACampo: string): string;
@@ -23,7 +24,18 @@ function RespostaPaginada(ADados: TJSONArray; const APaginacao: TPaginacao; ATot
 implementation
 
 uses
-  System.SysUtils, Infra.Excecoes;
+  System.SysUtils, Infra.Excecoes, Infra.Middleware.Autenticacao;
+
+function UsuarioLogado(AReq: THorseRequest): Integer;
+var
+  LSessao: TUsuarioLogado;
+begin
+  LSessao := AReq.Session<TUsuarioLogado>;
+  if Assigned(LSessao) then
+    Result := LSessao.Id
+  else
+    Result := 0;
+end;
 
 function IdDaRota(AReq: THorseRequest): Integer;
 begin

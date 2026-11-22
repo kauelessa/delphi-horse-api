@@ -16,6 +16,15 @@ uses
   System.SysUtils,
   Horse;
 
+type
+  { Guardado na sessão da requisição pelo middleware; os controllers leem
+    com Controller.Utils.UsuarioLogado. }
+  TUsuarioLogado = class
+  public
+    Id: Integer;
+    constructor Create(AId: Integer);
+  end;
+
 procedure Autenticar(AReq: THorseRequest; ARes: THorseResponse; ANext: TProc);
 
 implementation
@@ -40,9 +49,16 @@ begin
   Result := MatchText(LCaminho, ROTAS_PUBLICAS);
 end;
 
+constructor TUsuarioLogado.Create(AId: Integer);
+begin
+  inherited Create;
+  Id := AId;
+end;
+
 procedure Autenticar(AReq: THorseRequest; ARes: THorseResponse; ANext: TProc);
 var
   LAuthorization: string;
+  LUsuarioId: Integer;
 begin
   // Preflight de CORS não carrega o token.
   if SameText(AReq.RawWebRequest.Method, 'OPTIONS') or RotaPublica(AReq.RawWebRequest.PathInfo) then
@@ -55,9 +71,13 @@ begin
   if not LAuthorization.StartsWith(PREFIXO_BEARER, True) then
     raise ENaoAutorizado.Create('Token não informado. Use o cabeçalho Authorization: Bearer <token>.');
 
-  if not TValidadorTokenJWT.Valido(LAuthorization.Substring(Length(PREFIXO_BEARER)).Trim, TConfig.JWT) then
+  LUsuarioId := TValidadorTokenJWT.UsuarioDoToken(
+    LAuthorization.Substring(Length(PREFIXO_BEARER)).Trim, TConfig.JWT);
+  if LUsuarioId <= 0 then
     raise ENaoAutorizado.Create('Token inválido ou expirado.');
 
+  // a requisição fica dona do objeto e libera no fim
+  AReq.Session(TUsuarioLogado.Create(LUsuarioId), True);
   ANext();
 end;
 

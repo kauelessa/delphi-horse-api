@@ -25,6 +25,10 @@ type
       é o configurado e o token ainda não expirou. Qualquer token
       malformado resulta em False, nunca em exceção. }
     class function Valido(const AToken: string; const AConfig: TConfigJWT): Boolean; static;
+
+    { Id do usuário (claim "sub") de um token válido pelas mesmas regras de
+      Valido; 0 quando o token não vale. }
+    class function UsuarioDoToken(const AToken: string; const AConfig: TConfigJWT): Integer; static;
   end;
 
 implementation
@@ -71,12 +75,18 @@ end;
 { TValidadorTokenJWT }
 
 class function TValidadorTokenJWT.Valido(const AToken: string; const AConfig: TConfigJWT): Boolean;
+begin
+  Result := UsuarioDoToken(AToken, AConfig) > 0;
+end;
+
+class function TValidadorTokenJWT.UsuarioDoToken(const AToken: string; const AConfig: TConfigJWT): Integer;
 var
   LChave: TJWK;
   LJWT: TJWT;
 begin
+  Result := 0;
   if AToken.Trim.IsEmpty then
-    Exit(False);
+    Exit;
 
   LChave := TJWK.Create(AConfig.Segredo);
   try
@@ -84,20 +94,21 @@ begin
       LJWT := TJOSE.Verify(LChave, AToken);
     except
       // token malformado (base64/JSON inválido) — tratamos como inválido
-      Exit(False);
+      Exit;
     end;
 
     if not Assigned(LJWT) then
-      Exit(False);
+      Exit;
 
     try
       // Conferir o algoritmo evita aceitar tokens com "alg": "none" ou outro
       // algoritmo que não seja o que emitimos.
-      Result := LJWT.Verified
+      if LJWT.Verified
         and (LJWT.Header.Algorithm = ALGORITMO)
         and (LJWT.Claims.Issuer = AConfig.Emissor)
         and LJWT.Claims.HasExpiration
-        and (LJWT.Claims.Expiration > Now);
+        and (LJWT.Claims.Expiration > Now) then
+        Result := StrToIntDef(LJWT.Claims.Subject, 0);
     finally
       LJWT.Free;
     end;
