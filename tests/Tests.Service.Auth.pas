@@ -7,7 +7,9 @@ uses
   Model.Usuario,
   Repository.Usuario,
   Infra.Token,
-  Service.Auth;
+  Service.Auth,
+  Repository.Sessao,
+  Tests.Fakes;
 
 type
   { Repositório em memória com um único usuário (ou nenhum). }
@@ -20,7 +22,9 @@ type
     constructor Create; overload;
     destructor Destroy; override;
     function BuscarPorLogin(const ALogin: string): TUsuario;
+    function BuscarPorId(AId: Integer): TUsuario;
     property UltimoLoginBuscado: string read FUltimoLoginBuscado;
+    property Usuario: TUsuario read FUsuario;
   end;
 
   TGeradorTokenFake = class(TInterfacedObject, IGeradorToken)
@@ -31,9 +35,29 @@ type
   [TestFixture]
   TTestsAuthService = class
   private
+    FAgora: TDateTime;
+    FSessoes: TSessaoRepositoryFake;
+    FSessoesIntf: ISessaoRepository;
     function CriarService(const ARepository: IUsuarioRepository): IAuthService;
     procedure VerificarRequisicaoInvalida(const ALogin, ASenha: string);
+    procedure VerificarSessaoExpirada(const AService: IAuthService; const ARefresh: string);
   public
+    [Setup]
+    procedure Preparar;
+    [Test]
+    procedure LoginDevolveRefreshEGuardaSoOHash;
+    [Test]
+    procedure RenovarRotacionaOToken;
+    [Test]
+    procedure ReusoDeTokenRevogadoDerrubaAFamilia;
+    [Test]
+    procedure RefreshExpiradoRecusado;
+    [Test]
+    procedure RefreshDeUsuarioInativoRecusado;
+    [Test]
+    procedure RefreshDesconhecidoRecusado;
+    [Test]
+    procedure SairRevogaASessao;
     [Test]
     procedure Login_CredenciaisValidas_RetornaToken;
     [Test]
@@ -56,6 +80,8 @@ implementation
 
 uses
   System.SysUtils,
+  System.DateUtils,
+  Model.Sessao,
   Infra.Excecoes,
   Infra.Senha;
 
@@ -103,6 +129,13 @@ begin
   Result.Ativo := FUsuario.Ativo;
 end;
 
+function TUsuarioRepositoryFake.BuscarPorId(AId: Integer): TUsuario;
+begin
+  if (FUsuario = nil) or (FUsuario.Id <> AId) then
+    Exit(nil);
+  Result := BuscarPorLogin(FUsuario.Login);
+end;
+
 { TGeradorTokenFake }
 
 function TGeradorTokenFake.Gerar(const AUsuario: TUsuario): TTokenAcesso;
@@ -113,9 +146,124 @@ end;
 
 { TTestsAuthService }
 
+procedure TTestsAuthService.Preparar;
+begin
+  FAgora := EncodeDateTime(2026, 11, 22, 10, 0, 0, 0);
+  FSessoes := TSessaoRepositoryFake.Create;
+  FSessoesIntf := FSessoes;
+end;
+
 function TTestsAuthService.CriarService(const ARepository: IUsuarioRepository): IAuthService;
 begin
-  Result := TAuthService.Create(ARepository, TGeradorTokenFake.Create);
+  Result := TAuthService.Create(ARepository, FSessoesIntf, TGeradorTokenFake.Create, 30,
+    function: TDateTime
+    begin
+      Result := FAgora;
+    end);
+end;
+
+procedure TTestsAuthService.VerificarSessaoExpirada(const AService: IAuthService; const ARefresh: string);
+begin
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      AService.Renovar(ARefresh);
+    end,
+    ENaoAutorizado, TAuthService.MENSAGEM_SESSAO_EXPIRADA);
+end;
+
+procedure TTestsAuthService.LoginDevolveRefreshEGuardaSoOHash;
+var
+  LToken: TTokenAcesso;
+  LSessao: TSessao;
+begin
+  LToken := CriarService(TUsuarioRepositoryFake.Create('ana', 'ana123', True))
+    .Login('ana', 'ana123', 'Moto G');
+
+  Assert.IsNotEmpty(LToken.RefreshToken);
+  Assert.AreEqual(1, FSessoes.Sessoes.Count);
+  LSessao := FSessoes.Sessoes[0];
+  Assert.AreNotEqual(LToken.RefreshToken, LSessao.TokenHash);
+  Assert.AreEqual(64, LSessao.TokenHash.Length);
+  Assert.AreEqual('Moto G', LSessao.Dispositivo);
+  Assert.AreEqual(IncDay(FAgora, 30), LSessao.ExpiraEm);
+  Assert.AreEqual(IncDay(FAgora, 30), LToken.RefreshExpiraEm);
+end;
+
+procedure TTestsAuthService.RenovarRotacionaOToken;
+var
+  LService: IAuthService;
+  R1, R2, R3: string;
+begin
+  LService := CriarService(TUsuarioRepositoryFake.Create('ana', 'ana123', True));
+  R1 := LService.Login('ana', 'ana123', '').RefreshToken;
+  R2 := LService.Renovar(R1).RefreshToken;
+
+  Assert.AreNotEqual(R1, R2);
+  Assert.IsTrue(FSessoes.Sessoes[0].Revogada, 'a sessão de r1 deveria estar revogada');
+  Assert.AreEqual(FSessoes.Sessoes[0].Familia, FSessoes.Sessoes[1].Familia);
+
+  R3 := LService.Renovar(R2).RefreshToken;
+  Assert.IsNotEmpty(R3);
+end;
+
+procedure TTestsAuthService.ReusoDeTokenRevogadoDerrubaAFamilia;
+var
+  LService: IAuthService;
+  R1, R2: string;
+begin
+  LService := CriarService(TUsuarioRepositoryFake.Create('ana', 'ana123', True));
+  R1 := LService.Login('ana', 'ana123', '').RefreshToken;
+  R2 := LService.Renovar(R1).RefreshToken;
+
+  VerificarSessaoExpirada(LService, R1); // alguém reusou o token antigo
+  VerificarSessaoExpirada(LService, R2); // então o atual também cai
+end;
+
+procedure TTestsAuthService.RefreshExpiradoRecusado;
+var
+  LService: IAuthService;
+  R1: string;
+begin
+  LService := CriarService(TUsuarioRepositoryFake.Create('ana', 'ana123', True));
+  R1 := LService.Login('ana', 'ana123', '').RefreshToken;
+  FAgora := IncDay(FAgora, 31);
+  VerificarSessaoExpirada(LService, R1);
+end;
+
+procedure TTestsAuthService.RefreshDeUsuarioInativoRecusado;
+var
+  LRepo: TUsuarioRepositoryFake;
+  LRepoIntf: IUsuarioRepository;
+  LService: IAuthService;
+  R1: string;
+begin
+  LRepo := TUsuarioRepositoryFake.Create('ana', 'ana123', True);
+  LRepoIntf := LRepo;
+  LService := CriarService(LRepoIntf);
+  R1 := LService.Login('ana', 'ana123', '').RefreshToken;
+  LRepo.Usuario.Ativo := False;
+  VerificarSessaoExpirada(LService, R1);
+end;
+
+procedure TTestsAuthService.RefreshDesconhecidoRecusado;
+begin
+  VerificarSessaoExpirada(CriarService(TUsuarioRepositoryFake.Create('ana', 'ana123', True)), 'qualquer-coisa');
+  VerificarSessaoExpirada(CriarService(TUsuarioRepositoryFake.Create('ana', 'ana123', True)), '');
+end;
+
+procedure TTestsAuthService.SairRevogaASessao;
+var
+  LService: IAuthService;
+  R1: string;
+begin
+  LService := CriarService(TUsuarioRepositoryFake.Create('ana', 'ana123', True));
+  R1 := LService.Login('ana', 'ana123', '').RefreshToken;
+  LService.Sair(R1);
+  VerificarSessaoExpirada(LService, R1);
+
+  LService.Sair('token-que-nao-existe'); // não deve levantar erro
+  Assert.Pass;
 end;
 
 procedure TTestsAuthService.Login_CredenciaisValidas_RetornaToken;
@@ -123,7 +271,7 @@ var
   LToken: TTokenAcesso;
 begin
   LToken := CriarService(TUsuarioRepositoryFake.Create('admin', 'senha123', True))
-    .Login('admin', 'senha123');
+    .Login('admin', 'senha123', '');
 
   Assert.AreEqual(TOKEN_FAKE, LToken.Token);
 end;
@@ -136,7 +284,7 @@ begin
   LRepositorio := TUsuarioRepositoryFake.Create('admin', 'senha123', True);
   LRepositorioIntf := LRepositorio; // mantém a referência viva durante o teste
 
-  CriarService(LRepositorioIntf).Login('  Admin ', 'senha123');
+  CriarService(LRepositorioIntf).Login('  Admin ', 'senha123', '');
 
   Assert.AreEqual('admin', LRepositorio.UltimoLoginBuscado);
 end;
@@ -150,7 +298,7 @@ begin
   Assert.WillRaiseWithMessage(
     procedure
     begin
-      LService.Login('admin', 'errada');
+      LService.Login('admin', 'errada', '');
     end,
     ENaoAutorizado, TAuthService.MENSAGEM_CREDENCIAIS_INVALIDAS);
 end;
@@ -164,7 +312,7 @@ begin
   Assert.WillRaiseWithMessage(
     procedure
     begin
-      LService.Login('ninguem', 'senha123');
+      LService.Login('ninguem', 'senha123', '');
     end,
     ENaoAutorizado, TAuthService.MENSAGEM_CREDENCIAIS_INVALIDAS);
 end;
@@ -178,7 +326,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      LService.Login('admin', 'senha123');
+      LService.Login('admin', 'senha123', '');
     end,
     ENaoAutorizado);
 end;
@@ -192,7 +340,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      LService.Login(ALogin, ASenha);
+      LService.Login(ALogin, ASenha, '');
     end,
     ERequisicaoInvalida);
 end;

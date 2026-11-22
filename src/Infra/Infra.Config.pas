@@ -28,6 +28,7 @@ type
     Segredo: string;
     Emissor: string;
     ExpiracaoMinutos: Integer;
+    RefreshDias: Integer;
   end;
 
   TConfig = class
@@ -84,6 +85,7 @@ begin
     FJWT.Segredo := LIni.ReadString('JWT', 'Segredo', '');
     FJWT.Emissor := LIni.ReadString('JWT', 'Emissor', 'delphi-horse-api');
     FJWT.ExpiracaoMinutos := LIni.ReadInteger('JWT', 'ExpiracaoMinutos', 60);
+    FJWT.RefreshDias := LIni.ReadInteger('JWT', 'RefreshDias', 30);
 
     FMigracao.CriarBanco := LIni.ReadBool('Migracao', 'CriarBanco', False);
     FMigracao.Executar := LIni.ReadBool('Migracao', 'Executar', True);
@@ -110,6 +112,9 @@ begin
 
   if FJWT.ExpiracaoMinutos <= 0 then
     raise Exception.Create('Configuração inválida: [JWT] ExpiracaoMinutos deve ser maior que zero.');
+
+  if FJWT.RefreshDias <= 0 then
+    raise Exception.Create('Configuração inválida: [JWT] RefreshDias deve ser maior que zero.');
 end;
 
 end.

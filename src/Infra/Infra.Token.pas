@@ -13,6 +13,9 @@ type
   TTokenAcesso = record
     Token: string;
     ExpiraEm: TDateTime;
+    { Opaco, entregue só no login/renovação; o banco guarda apenas o hash. }
+    RefreshToken: string;
+    RefreshExpiraEm: TDateTime;
   end;
 
   IGeradorToken = interface

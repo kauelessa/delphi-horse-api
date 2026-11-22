@@ -14,7 +14,9 @@ uses
   Model.Paginacao,
   Repository.Cliente,
   Repository.Produto,
-  Repository.Pedido;
+  Repository.Pedido,
+  Model.Sessao,
+  Repository.Sessao;
 
 type
   TClienteRepositoryFake = class(TInterfacedObject, IClienteRepository)
@@ -76,6 +78,21 @@ type
     function BuscarPorId(AId: Integer): TPedido;
     procedure Inserir(APedido: TPedido);
     procedure Cancelar(APedido: TPedido);
+  end;
+
+  TSessaoRepositoryFake = class(TInterfacedObject, ISessaoRepository)
+  private
+    FSessoes: TObjectList<TSessao>;
+    FProximoId: Integer;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property Sessoes: TObjectList<TSessao> read FSessoes; // para asserts
+
+    procedure Inserir(ASessao: TSessao);
+    function BuscarPorHash(const AHash: string): TSessao;
+    function Revogar(AId: Integer): Boolean;
+    procedure RevogarFamilia(const AFamilia: string);
   end;
 
 function ClonarCliente(AOrigem: TCliente): TCliente;
@@ -388,6 +405,60 @@ procedure TPedidoRepositoryFake.Cancelar(APedido: TPedido);
 begin
   Localizar(APedido.Id).Status := spCancelado;
   Inc(FCancelamentos);
+end;
+
+{ TSessaoRepositoryFake }
+
+constructor TSessaoRepositoryFake.Create;
+begin
+  inherited Create;
+  FSessoes := TObjectList<TSessao>.Create(True);
+  FProximoId := 1;
+end;
+
+destructor TSessaoRepositoryFake.Destroy;
+begin
+  FSessoes.Free;
+  inherited;
+end;
+
+procedure TSessaoRepositoryFake.Inserir(ASessao: TSessao);
+begin
+  ASessao.Id := FProximoId;
+  Inc(FProximoId);
+  FSessoes.Add(ASessao.Clonar);
+end;
+
+function TSessaoRepositoryFake.BuscarPorHash(const AHash: string): TSessao;
+var
+  LSessao: TSessao;
+begin
+  for LSessao in FSessoes do
+    if LSessao.TokenHash = AHash then
+      Exit(LSessao.Clonar);
+  Result := nil;
+end;
+
+function TSessaoRepositoryFake.Revogar(AId: Integer): Boolean;
+var
+  LSessao: TSessao;
+begin
+  for LSessao in FSessoes do
+    if (LSessao.Id = AId) and not LSessao.Revogada then
+    begin
+      LSessao.Revogada := True;
+      Exit(True);
+    end;
+  Result := False;
+end;
+
+procedure TSessaoRepositoryFake.RevogarFamilia(const AFamilia: string);
+var
+  LSessao: TSessao;
+begin
+  for LSessao in FSessoes do
+    if LSessao.Familia = AFamilia then
+      LSessao.Revogada := True;
 end;
 
 end.

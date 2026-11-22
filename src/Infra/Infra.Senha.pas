@@ -25,6 +25,10 @@ type
       AIteracoes, ATamanho: Integer): TBytes; static;
   end;
 
+{ Bytes de um gerador criptograficamente seguro (Random() não serve para
+  salt nem para token). }
+function BytesAleatorios(ATamanho: Integer): TBytes;
+
 implementation
 
 uses
@@ -46,7 +50,6 @@ function BCryptGenRandom(AAlgoritmo: Pointer; ABuffer: PByte; ATamanho: Cardinal
   AFlags: Cardinal): Integer; stdcall; external 'bcrypt.dll';
 {$ENDIF}
 
-{ Bytes de um gerador criptograficamente seguro (Random() não serve para salt). }
 function BytesAleatorios(ATamanho: Integer): TBytes;
 begin
   SetLength(Result, ATamanho);

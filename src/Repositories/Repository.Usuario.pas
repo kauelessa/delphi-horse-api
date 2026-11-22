@@ -9,19 +9,34 @@ type
   IUsuarioRepository = interface
     ['{36C914CB-2C39-42D5-80BA-71AFE6B17A0E}']
     function BuscarPorLogin(const ALogin: string): TUsuario; // nil se não achar, quem chama libera
+    function BuscarPorId(AId: Integer): TUsuario;
   end;
 
   TUsuarioRepository = class(TInterfacedObject, IUsuarioRepository)
+  private
+    function Buscar(const ACampo: string; const AValor: Variant): TUsuario;
   public
     function BuscarPorLogin(const ALogin: string): TUsuario;
+    function BuscarPorId(AId: Integer): TUsuario;
   end;
 
 implementation
 
 uses
-  FireDAC.Comp.Client, Infra.Conexao;
+  FireDAC.Comp.Client, Data.DB, Infra.Conexao;
 
 function TUsuarioRepository.BuscarPorLogin(const ALogin: string): TUsuario;
+begin
+  Result := Buscar('LOGIN', ALogin);
+end;
+
+function TUsuarioRepository.BuscarPorId(AId: Integer): TUsuario;
+begin
+  Result := Buscar('ID', AId);
+end;
+
+// ACampo vem só destes dois métodos, nunca do usuário
+function TUsuarioRepository.Buscar(const ACampo: string; const AValor: Variant): TUsuario;
 var
   LCon: TFDConnection;
   LQry: TFDQuery;
@@ -31,9 +46,8 @@ begin
   LQry := TFDQuery.Create(nil);
   try
     LQry.Connection := LCon;
-    LQry.SQL.Text := 'SELECT ID, NOME, LOGIN, SENHA_HASH, ATIVO FROM USUARIOS WHERE LOGIN = :LOGIN';
-    LQry.ParamByName('LOGIN').AsString := ALogin;
-    LQry.Open;
+    LQry.Open('SELECT ID, NOME, LOGIN, SENHA_HASH, ATIVO FROM USUARIOS WHERE ' + ACampo + ' = :VALOR',
+      [AValor]);
 
     if LQry.IsEmpty then
       Exit;

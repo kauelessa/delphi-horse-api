@@ -158,6 +158,7 @@
         <DCCReference Include="..\src\Models\Model.Pedido.pas"/>
         <DCCReference Include="..\src\Models\Model.Paginacao.pas"/>
         <DCCReference Include="..\src\Models\Model.Documento.pas"/>
+        <DCCReference Include="..\src\Models\Model.Sessao.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Config.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Conexao.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Migracao.pas"/>
@@ -169,6 +170,7 @@
         <DCCReference Include="..\src\Repositories\Repository.Cliente.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Produto.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Pedido.pas"/>
+        <DCCReference Include="..\src\Repositories\Repository.Sessao.pas"/>
         <DCCReference Include="..\src\Services\Service.Auth.pas"/>
         <DCCReference Include="..\src\Services\Service.Cliente.pas"/>
         <DCCReference Include="..\src\Services\Service.Produto.pas"/>

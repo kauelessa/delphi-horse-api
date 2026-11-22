@@ -36,7 +36,8 @@ uses
   Infra.JWT;
 
 const
-  ROTAS_PUBLICAS: array[0..1] of string = ('/health', '/auth/login');
+  // renovar/sair dependem do refresh token, não do access (que pode já ter expirado)
+  ROTAS_PUBLICAS: array[0..3] of string = ('/health', '/auth/login', '/auth/renovar', '/auth/sair');
   PREFIXO_BEARER = 'Bearer ';
 
 function RotaPublica(const ACaminho: string): Boolean;
