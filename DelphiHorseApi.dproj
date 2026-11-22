@@ -53,6 +53,7 @@
         <DCC_S>false</DCC_S>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <SanitizedProjectName>DelphiHorseApi</SanitizedProjectName>
+        <DCC_Define>FASTREPORT;$(DCC_Define)</DCC_Define>
         <VerInfo_Locale>1046</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;CFBundleName=</VerInfo_Keys>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
@@ -140,6 +141,7 @@
         <DCCReference Include="src\Infra\Infra.JWT.pas"/>
         <DCCReference Include="src\Infra\Infra.Relatorio.pas"/>
         <DCCReference Include="src\Infra\Infra.Relatorio.Fortes.pas"/>
+        <DCCReference Include="src\Infra\Infra.Relatorio.FastReport.pas"/>
         <DCCReference Include="src\Infra\Infra.Middleware.Erros.pas"/>
         <DCCReference Include="src\Infra\Infra.Middleware.Autenticacao.pas"/>
         <DCCReference Include="src\Repositories\Repository.Usuario.pas"/>

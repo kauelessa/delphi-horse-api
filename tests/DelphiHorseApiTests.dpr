@@ -29,6 +29,7 @@ uses
   Infra.JWT in '..\src\Infra\Infra.JWT.pas',
   Infra.Relatorio in '..\src\Infra\Infra.Relatorio.pas',
   Infra.Relatorio.Fortes in '..\src\Infra\Infra.Relatorio.Fortes.pas',
+  Infra.Relatorio.FastReport in '..\src\Infra\Infra.Relatorio.FastReport.pas',
   Repository.Usuario in '..\src\Repositories\Repository.Usuario.pas',
   Repository.Cliente in '..\src\Repositories\Repository.Cliente.pas',
   Repository.Produto in '..\src\Repositories\Repository.Produto.pas',
@@ -57,7 +58,8 @@ uses
   Tests.Model.Imagem in 'Tests.Model.Imagem.pas',
   Tests.Service.Visita in 'Tests.Service.Visita.pas',
   Tests.Service.Relatorio in 'Tests.Service.Relatorio.pas',
-  Tests.Infra.Relatorio.Fortes in 'Tests.Infra.Relatorio.Fortes.pas';
+  Tests.Infra.Relatorio.Fortes in 'Tests.Infra.Relatorio.Fortes.pas',
+  Tests.Infra.Relatorio.FastReport in 'Tests.Infra.Relatorio.FastReport.pas';
 
 var
   LRunner: ITestRunner;

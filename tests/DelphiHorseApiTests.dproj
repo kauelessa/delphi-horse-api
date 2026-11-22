@@ -62,6 +62,7 @@
         <DCC_S>false</DCC_S>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <SanitizedProjectName>DelphiHorseApiTests</SanitizedProjectName>
+        <DCC_Define>FASTREPORT;$(DCC_Define)</DCC_Define>
         <DCC_UnitSearchPath>..\modules\github_com_paolo-rossi_delphi-jose-jwt\Source\Common;..\modules\github_com_paolo-rossi_delphi-jose-jwt\Source\JOSE;..\modules\github_com_paolo-rossi_delphi-jose-jwt\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Locale>1046</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;CFBundleName=</VerInfo_Keys>
@@ -173,6 +174,7 @@
         <DCCReference Include="..\src\Infra\Infra.JWT.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Relatorio.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Relatorio.Fortes.pas"/>
+        <DCCReference Include="..\src\Infra\Infra.Relatorio.FastReport.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Usuario.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Cliente.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Produto.pas"/>
@@ -202,6 +204,7 @@
         <DCCReference Include="Tests.Service.Visita.pas"/>
         <DCCReference Include="Tests.Service.Relatorio.pas"/>
         <DCCReference Include="Tests.Infra.Relatorio.Fortes.pas"/>
+        <DCCReference Include="Tests.Infra.Relatorio.FastReport.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

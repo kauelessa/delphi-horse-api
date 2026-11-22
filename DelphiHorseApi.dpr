@@ -29,6 +29,7 @@ uses
   Infra.JWT in 'src\Infra\Infra.JWT.pas',
   Infra.Relatorio in 'src\Infra\Infra.Relatorio.pas',
   Infra.Relatorio.Fortes in 'src\Infra\Infra.Relatorio.Fortes.pas',
+  Infra.Relatorio.FastReport in 'src\Infra\Infra.Relatorio.FastReport.pas',
   Infra.Middleware.Erros in 'src\Infra\Infra.Middleware.Erros.pas',
   Infra.Middleware.Autenticacao in 'src\Infra\Infra.Middleware.Autenticacao.pas',
   Repository.Usuario in 'src\Repositories\Repository.Usuario.pas',
@@ -69,6 +70,13 @@ begin
     begin
       Result := TGeradorFortes.Create;
     end);
+  {$IFDEF FASTREPORT}
+  TRegistroGeradores.Registrar(mrFastReport,
+    function: IGeradorRelatorio
+    begin
+      Result := TGeradorFastReport.Create;
+    end);
+  {$ENDIF}
 
   try
     TConfig.Carregar(TConfig.ArquivoPadrao);
