@@ -77,6 +77,7 @@ uses
   System.DateUtils,
   Model.Cliente,
   Model.Uuid,
+  Model.EsperaUuid,
   Model.Imagem,
   Model.Produto,
   Infra.Excecoes;
@@ -272,9 +273,13 @@ begin
     // o mesmo pedido chegou duas vezes ao mesmo tempo e o outro gravou primeiro
     on EUuidDuplicado do
     begin
-      AJaExistia := CarregarPorUuid(APedido);
+      AJaExistia := EsperarPorUuid(
+        function: Boolean
+        begin
+          Result := CarregarPorUuid(APedido);
+        end);
       if not AJaExistia then
-        raise;
+        raise EConflito.Create('Este pedido ainda está sendo gravado por outro envio; tente de novo em instantes.');
     end;
   end;
 end;

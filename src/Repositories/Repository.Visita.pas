@@ -164,9 +164,10 @@ begin
     try
       LQry.Open;
     except
+      // pelo nome do índice: com a outra transação aberta o Kind não vem como ekUKViolated
       on E: EFDDBEngineException do
-        if E.Kind = ekUKViolated then
-          raise EUuidDuplicado.Create(E.Message) // o único índice único da tabela é o do UUID
+        if E.Message.ToUpper.Contains('UQ_VISITAS_UUID') then
+          raise EUuidDuplicado.Create(E.Message)
         else
           raise;
     end;

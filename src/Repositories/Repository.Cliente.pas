@@ -325,7 +325,7 @@ begin
     except
       // corrida entre dois cadastros com o mesmo documento/UUID: o UNIQUE segura
       on E: EFDDBEngineException do
-        if E.Kind = ekUKViolated then
+        if E.Message.ToUpper.Contains('UQ_CLIENTES_UUID') or (E.Kind = ekUKViolated) then
           TratarViolacaoUnica(E)
         else
           raise;

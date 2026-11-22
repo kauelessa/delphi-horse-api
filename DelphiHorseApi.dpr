@@ -19,6 +19,7 @@ uses
   Model.CodigoBarras in 'src\Models\Model.CodigoBarras.pas',
   Model.Imagem in 'src\Models\Model.Imagem.pas',
   Model.Uuid in 'src\Models\Model.Uuid.pas',
+  Model.EsperaUuid in 'src\Models\Model.EsperaUuid.pas',
   Model.Visita in 'src\Models\Model.Visita.pas',
   Model.Relatorio in 'src\Models\Model.Relatorio.pas',
   Infra.Config in 'src\Infra\Infra.Config.pas',

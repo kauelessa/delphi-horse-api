@@ -280,9 +280,11 @@ begin
       try
         LQry.Open;
       except
-        // reenvio do app chegando junto com o primeiro: o índice único do UUID segura
+        // reenvio do app chegando junto com o primeiro: o índice único do UUID segura.
+        // Com a outra transação ainda aberta o Firebird diz "visible to active transactions"
+        // e o FireDAC não classifica como ekUKViolated, por isso vale o nome do índice.
         on E: EFDDBEngineException do
-          if (E.Kind = ekUKViolated) and E.Message.ToUpper.Contains('UQ_PEDIDOS_UUID') then
+          if E.Message.ToUpper.Contains('UQ_PEDIDOS_UUID') then
             raise EUuidDuplicado.Create(E.Message)
           else
             raise;

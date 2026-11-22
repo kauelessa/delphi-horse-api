@@ -163,6 +163,7 @@
         <DCCReference Include="..\src\Models\Model.CodigoBarras.pas"/>
         <DCCReference Include="..\src\Models\Model.Imagem.pas"/>
         <DCCReference Include="..\src\Models\Model.Uuid.pas"/>
+        <DCCReference Include="..\src\Models\Model.EsperaUuid.pas"/>
         <DCCReference Include="..\src\Models\Model.Visita.pas"/>
         <DCCReference Include="..\src\Models\Model.Relatorio.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Config.pas"/>

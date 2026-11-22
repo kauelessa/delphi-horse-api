@@ -76,6 +76,10 @@ type
     procedure GravarFoto_MaiorQue500KB_NaoGrava;
     [Test]
     procedure LerFoto_SemFoto_LevantaNaoEncontrado;
+    [Test]
+    procedure Criar_CorridaNoMesmoUuidBatendoNoDocumento_DevolveOExistente;
+    [Test]
+    procedure Criar_DocumentoDeOutroClienteNaCorrida_ContinuaRecusado;
   end;
 
 implementation
@@ -449,6 +453,43 @@ begin
       FService.LerFoto(LId);
     end,
     ENaoEncontrado);
+end;
+
+procedure TTestsClienteService.Criar_CorridaNoMesmoUuidBatendoNoDocumento_DevolveOExistente;
+var
+  LCliente: TCliente;
+  LJaExistia: Boolean;
+begin
+  FRepositorio.SimularCorridaPorDocumento := True;
+  LCliente := NovoCliente('Maria', CPF_VALIDO, '');
+  try
+    LCliente.Uuid := UUID_APP;
+    FService.Criar(LCliente, LJaExistia);
+    Assert.IsTrue(LJaExistia);
+    Assert.IsTrue(LCliente.Id > 0);
+  finally
+    LCliente.Free;
+  end;
+end;
+
+procedure TTestsClienteService.Criar_DocumentoDeOutroClienteNaCorrida_ContinuaRecusado;
+var
+  LCliente: TCliente;
+  LJaExistia: Boolean;
+begin
+  // outro cliente (sem o nosso UUID) gravou o mesmo CPF entre a conferência e o insert
+  FRepositorio.SimularCorridaPorDocumento := True;
+  LCliente := NovoCliente('Maria', CPF_VALIDO, '');
+  try
+    Assert.WillRaiseWithMessage(
+      procedure
+      begin
+        FService.Criar(LCliente, LJaExistia); // sem uuid: não há o que esperar
+      end,
+      ERegraNegocio, 'Já existe um cliente com este CPF/CNPJ.');
+  finally
+    LCliente.Free;
+  end;
 end;
 
 initialization

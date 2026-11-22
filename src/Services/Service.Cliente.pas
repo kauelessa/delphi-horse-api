@@ -67,6 +67,7 @@ uses
   Model.Documento,
   Model.Uuid,
   Model.Imagem,
+  Model.EsperaUuid,
   Infra.Excecoes;
 
 const
@@ -187,7 +188,25 @@ begin
     // outro envio do mesmo UUID gravou entre a consulta e o insert
     on EUuidDuplicado do
     begin
-      AJaExistia := CarregarPorUuid(ACliente);
+      AJaExistia := EsperarPorUuid(
+        function: Boolean
+        begin
+          Result := CarregarPorUuid(ACliente);
+        end);
+      if not AJaExistia then
+        raise EConflito.Create('Este cliente ainda está sendo gravado por outro envio; tente de novo em instantes.');
+    end;
+    // o mesmo cliente enviado duas vezes ao mesmo tempo esbarra primeiro no índice do
+    // CPF/CNPJ; se o outro envio tinha o nosso UUID, é o mesmo cadastro
+    on ERegraNegocio do
+    begin
+      if ACliente.Uuid = '' then
+        raise;
+      AJaExistia := EsperarPorUuid(
+        function: Boolean
+        begin
+          Result := CarregarPorUuid(ACliente);
+        end);
       if not AJaExistia then
         raise;
     end;

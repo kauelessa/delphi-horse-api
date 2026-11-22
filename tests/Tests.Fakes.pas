@@ -43,6 +43,9 @@ type
     // se atribuído, cada Listar anota 'Listar' aqui (para conferir a ordem das chamadas)
     property Registro: TStrings read FRegistro write FRegistro;
     property Insercoes: Integer read FInsercoes;
+    // Inserir grava "o outro envio" com o mesmo UUID e recusa pelo documento, como o
+    // índice do CPF/CNPJ faria antes do índice do UUID
+    var SimularCorridaPorDocumento: Boolean;
     function FotosGravadas: Integer;
     function BuscarPorUuid(const AUuid: string): TCliente;
     procedure GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
@@ -95,6 +98,8 @@ type
     function Quantidade: Integer;
     // Inserir grava "a outra requisição" e levanta EUuidDuplicado, como o índice único faria
     var SimularCorridaDeUuid: Boolean;
+    // quantas leituras por UUID ainda não enxergam o pedido do "outro" envio (-1 = nunca)
+    var LeiturasAteConfirmar: Integer;
     function BuscarPorUuid(const AUuid: string): TPedido;
     function LerAssinatura(AId: Integer): TBytes;
 
@@ -306,7 +311,18 @@ begin
 end;
 
 procedure TClienteRepositoryFake.Inserir(ACliente: TCliente);
+var
+  LOutro: TCliente;
 begin
+  if SimularCorridaPorDocumento then
+  begin
+    SimularCorridaPorDocumento := False;
+    LOutro := ClonarCliente(ACliente);
+    LOutro.Id := FProximoId;
+    Inc(FProximoId);
+    FClientes.Add(LOutro);
+    raise ERegraNegocio.Create('Já existe um cliente com este CPF/CNPJ.');
+  end;
   Inc(FInsercoes);
   ACliente.Id := FProximoId;
   Inc(FProximoId);
@@ -504,6 +520,12 @@ function TPedidoRepositoryFake.BuscarPorUuid(const AUuid: string): TPedido;
 var
   LPedido: TPedido;
 begin
+  if LeiturasAteConfirmar <> 0 then
+  begin
+    if LeiturasAteConfirmar > 0 then
+      Dec(LeiturasAteConfirmar);
+    Exit(nil);
+  end;
   for LPedido in FPedidos do
     if (LPedido.Uuid <> '') and (LPedido.Uuid = AUuid) then
       Exit(ClonarPedido(LPedido));

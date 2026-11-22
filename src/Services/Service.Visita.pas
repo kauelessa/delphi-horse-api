@@ -38,7 +38,7 @@ type
 implementation
 
 uses
-  System.SysUtils, System.DateUtils, Model.Cliente, Model.Uuid, Infra.Excecoes;
+  System.SysUtils, System.DateUtils, Model.Cliente, Model.Uuid, Model.EsperaUuid, Infra.Excecoes;
 
 const
   TAMANHO_MAXIMO_OBSERVACAO = 500;
@@ -123,9 +123,13 @@ begin
   except
     on EUuidDuplicado do
     begin
-      AJaExistia := CarregarPorUuid(AVisita);
+      AJaExistia := EsperarPorUuid(
+        function: Boolean
+        begin
+          Result := CarregarPorUuid(AVisita);
+        end);
       if not AJaExistia then
-        raise;
+        raise EConflito.Create('Esta visita ainda está sendo gravada por outro envio; tente de novo em instantes.');
     end;
   end;
 end;

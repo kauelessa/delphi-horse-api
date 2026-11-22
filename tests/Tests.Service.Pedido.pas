@@ -89,6 +89,10 @@ type
     [Test]
     procedure Criar_DevolveOPedidoComoFicouGravado;
     [Test]
+    procedure CorridaComOutroEnvioAindaGravando_EsperaEDevolveOExistente;
+    [Test]
+    procedure CorridaComOutroEnvioQueNaoConfirma_Conflito;
+    [Test]
     procedure Faturar_PedidoAberto_GravaANota;
     [Test]
     procedure Faturar_PedidoCancelado_Conflito;
@@ -499,6 +503,45 @@ begin
   LPedido := PedidoDoApp;
   LPedido.Observacao := StringOfChar('x', 501);
   VerificarRecusa(LPedido, ERegraNegocio, 'A observação deve ter no máximo 500 caracteres.');
+end;
+
+procedure TTestsPedidoService.CorridaComOutroEnvioAindaGravando_EsperaEDevolveOExistente;
+var
+  LPedido: TPedido;
+  LJaExistia: Boolean;
+begin
+  // no Firebird o índice único recusa antes de o outro envio confirmar a transação;
+  // as primeiras releituras ainda não enxergam o pedido dele
+  FPedidos.SimularCorridaDeUuid := True;
+  LPedido := PedidoDoApp;
+  try
+    FPedidos.LeiturasAteConfirmar := 3;
+    FService.Criar(LPedido, LJaExistia);
+    Assert.IsTrue(LJaExistia);
+    Assert.AreEqual(1, FPedidos.Quantidade);
+  finally
+    LPedido.Free;
+  end;
+end;
+
+procedure TTestsPedidoService.CorridaComOutroEnvioQueNaoConfirma_Conflito;
+var
+  LPedido: TPedido;
+  LJaExistia: Boolean;
+begin
+  FPedidos.SimularCorridaDeUuid := True;
+  FPedidos.LeiturasAteConfirmar := -1;
+  LPedido := PedidoDoApp;
+  try
+    Assert.WillRaiseWithMessage(
+      procedure
+      begin
+        FService.Criar(LPedido, LJaExistia);
+      end,
+      EConflito, 'Este pedido ainda está sendo gravado por outro envio; tente de novo em instantes.');
+  finally
+    LPedido.Free;
+  end;
 end;
 
 procedure TTestsPedidoService.Criar_DevolveOPedidoComoFicouGravado;
