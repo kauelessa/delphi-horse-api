@@ -2,7 +2,7 @@
 
 API REST desenvolvida em **Delphi** com o framework **[Horse](https://github.com/HashLoad/horse)** e banco de dados **Firebird**, com autenticação **JWT** e arquitetura em camadas.
 
-> Faz parte do meu portfólio. É a base de um ecossistema que terá também um cliente desktop (VCL) e um app mobile (FireMonkey) consumindo esta API.
+> Faz parte do meu portfólio. É a base de um ecossistema com o cliente desktop [delphi-vcl-client](https://github.com/kauelessa/delphi-vcl-client) (VCL + DevExpress), que consome todos os endpoints desta API, e futuramente um app mobile (FireMonkey).
 
 ## 🎯 Objetivo
 
