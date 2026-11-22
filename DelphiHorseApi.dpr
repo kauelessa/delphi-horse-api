@@ -19,6 +19,7 @@ uses
   Model.CodigoBarras in 'src\Models\Model.CodigoBarras.pas',
   Model.Imagem in 'src\Models\Model.Imagem.pas',
   Model.Uuid in 'src\Models\Model.Uuid.pas',
+  Model.Visita in 'src\Models\Model.Visita.pas',
   Infra.Config in 'src\Infra\Infra.Config.pas',
   Infra.Conexao in 'src\Infra\Infra.Conexao.pas',
   Infra.Excecoes in 'src\Infra\Infra.Excecoes.pas',
@@ -33,16 +34,19 @@ uses
   Repository.Pedido in 'src\Repositories\Repository.Pedido.pas',
   Repository.Sessao in 'src\Repositories\Repository.Sessao.pas',
   Repository.Relogio in 'src\Repositories\Repository.Relogio.pas',
+  Repository.Visita in 'src\Repositories\Repository.Visita.pas',
   Service.Auth in 'src\Services\Service.Auth.pas',
   Service.Cliente in 'src\Services\Service.Cliente.pas',
   Service.Produto in 'src\Services\Service.Produto.pas',
   Service.Pedido in 'src\Services\Service.Pedido.pas',
+  Service.Visita in 'src\Services\Service.Visita.pas',
   Controller.Utils in 'src\Controllers\Controller.Utils.pas',
   Controller.Health in 'src\Controllers\Controller.Health.pas',
   Controller.Auth in 'src\Controllers\Controller.Auth.pas',
   Controller.Cliente in 'src\Controllers\Controller.Cliente.pas',
   Controller.Produto in 'src\Controllers\Controller.Produto.pas',
   Controller.Pedido in 'src\Controllers\Controller.Pedido.pas',
+  Controller.Visita in 'src\Controllers\Controller.Visita.pas',
   Infra.Migracao in 'src\Infra\Infra.Migracao.pas';
 
 var
@@ -87,6 +91,7 @@ begin
   TControllerCliente.Registrar;
   TControllerProduto.Registrar;
   TControllerPedido.Registrar;
+  TControllerVisita.Registrar;
 
   THorse.Listen(TConfig.PortaServidor,
     procedure

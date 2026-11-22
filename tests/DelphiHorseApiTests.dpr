@@ -18,6 +18,7 @@ uses
   Model.CodigoBarras in '..\src\Models\Model.CodigoBarras.pas',
   Model.Imagem in '..\src\Models\Model.Imagem.pas',
   Model.Uuid in '..\src\Models\Model.Uuid.pas',
+  Model.Visita in '..\src\Models\Model.Visita.pas',
   Infra.Config in '..\src\Infra\Infra.Config.pas',
   Infra.Conexao in '..\src\Infra\Infra.Conexao.pas',
   Infra.Migracao in '..\src\Infra\Infra.Migracao.pas',
@@ -31,10 +32,12 @@ uses
   Repository.Pedido in '..\src\Repositories\Repository.Pedido.pas',
   Repository.Sessao in '..\src\Repositories\Repository.Sessao.pas',
   Repository.Relogio in '..\src\Repositories\Repository.Relogio.pas',
+  Repository.Visita in '..\src\Repositories\Repository.Visita.pas',
   Service.Auth in '..\src\Services\Service.Auth.pas',
   Service.Cliente in '..\src\Services\Service.Cliente.pas',
   Service.Produto in '..\src\Services\Service.Produto.pas',
   Service.Pedido in '..\src\Services\Service.Pedido.pas',
+  Service.Visita in '..\src\Services\Service.Visita.pas',
   Tests.Fakes in 'Tests.Fakes.pas',
   Tests.Infra.Senha in 'Tests.Infra.Senha.pas',
   Tests.Infra.Migracao in 'Tests.Infra.Migracao.pas',
@@ -46,7 +49,8 @@ uses
   Tests.Repository.Filtro in 'Tests.Repository.Filtro.pas',
   Tests.Infra.JWT in 'Tests.Infra.JWT.pas',
   Tests.Model.CodigoBarras in 'Tests.Model.CodigoBarras.pas',
-  Tests.Model.Imagem in 'Tests.Model.Imagem.pas';
+  Tests.Model.Imagem in 'Tests.Model.Imagem.pas',
+  Tests.Service.Visita in 'Tests.Service.Visita.pas';
 
 var
   LRunner: ITestRunner;

@@ -18,6 +18,8 @@ uses
   Model.Sessao,
   Repository.Sessao,
   Repository.Relogio,
+  Model.Visita,
+  Repository.Visita,
   System.SysUtils,
   System.Classes;
 
@@ -119,6 +121,22 @@ type
     function BuscarPorHash(const AHash: string): TSessao;
     function Revogar(AId: Integer): Boolean;
     procedure RevogarFamilia(const AFamilia: string);
+  end;
+
+  TVisitaRepositoryFake = class(TInterfacedObject, IVisitaRepository)
+  private
+    FVisitas: TObjectList<TVisita>;
+    FProximoId: Integer;
+  public
+    var SimularCorridaDeUuid: Boolean;
+    constructor Create;
+    destructor Destroy; override;
+    function Quantidade: Integer;
+    function Obter(AId: Integer): TVisita; // sem cópia, para asserts
+
+    function Listar(const APaginacao: TPaginacao; const ASync: TFiltroSync; out ATotal: Integer): TObjectList<TVisita>;
+    function BuscarPorUuid(const AUuid: string): TVisita;
+    procedure Inserir(AVisita: TVisita);
   end;
 
   TRelogioFake = class(TInterfacedObject, IRelogioRepository)
@@ -536,6 +554,84 @@ end;
 procedure TPedidoRepositoryFake.LimparFaturamento(AId: Integer);
 begin
   Localizar(AId).LimparNota;
+end;
+
+{ TVisitaRepositoryFake }
+
+constructor TVisitaRepositoryFake.Create;
+begin
+  inherited Create;
+  FVisitas := TObjectList<TVisita>.Create(True);
+  FProximoId := 1;
+end;
+
+destructor TVisitaRepositoryFake.Destroy;
+begin
+  FVisitas.Free;
+  inherited;
+end;
+
+function TVisitaRepositoryFake.Quantidade: Integer;
+begin
+  Result := FVisitas.Count;
+end;
+
+function TVisitaRepositoryFake.Obter(AId: Integer): TVisita;
+var
+  LVisita: TVisita;
+begin
+  for LVisita in FVisitas do
+    if LVisita.Id = AId then
+      Exit(LVisita);
+  Result := nil;
+end;
+
+function TVisitaRepositoryFake.Listar(const APaginacao: TPaginacao; const ASync: TFiltroSync;
+  out ATotal: Integer): TObjectList<TVisita>;
+var
+  LVisita, LCopia: TVisita;
+begin
+  Result := TObjectList<TVisita>.Create(True);
+  for LVisita in FVisitas do
+    if (ASync.UsuarioId = 0) or (LVisita.UsuarioId = ASync.UsuarioId) then
+    begin
+      LCopia := TVisita.Create;
+      LCopia.Assign(LVisita);
+      Result.Add(LCopia);
+    end;
+  ATotal := Result.Count;
+end;
+
+function TVisitaRepositoryFake.BuscarPorUuid(const AUuid: string): TVisita;
+var
+  LVisita: TVisita;
+begin
+  for LVisita in FVisitas do
+    if LVisita.Uuid = AUuid then
+    begin
+      Result := TVisita.Create;
+      Result.Assign(LVisita);
+      Exit;
+    end;
+  Result := nil;
+end;
+
+procedure TVisitaRepositoryFake.Inserir(AVisita: TVisita);
+var
+  LCopia: TVisita;
+begin
+  LCopia := TVisita.Create;
+  LCopia.Assign(AVisita);
+  LCopia.Id := FProximoId;
+  Inc(FProximoId);
+  FVisitas.Add(LCopia);
+  if SimularCorridaDeUuid then
+  begin
+    // "a outra requisição" gravou primeiro
+    SimularCorridaDeUuid := False;
+    raise EUuidDuplicado.Create('UQ_VISITAS_UUID');
+  end;
+  AVisita.Id := LCopia.Id;
 end;
 
 { TRelogioFake }
