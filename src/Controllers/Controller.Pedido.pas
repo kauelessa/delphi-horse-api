@@ -13,12 +13,13 @@ implementation
 uses
   System.SysUtils, System.JSON, System.DateUtils, System.Generics.Collections,
   Horse, Horse.Commons, Model.Pedido, Model.Paginacao, Repository.Cliente,
-  Repository.Produto, Repository.Pedido, Service.Pedido, Controller.Utils, Infra.Excecoes;
+  Repository.Produto, Repository.Pedido, Repository.Relogio, Service.Pedido, Controller.Utils,
+  Infra.Excecoes;
 
 function Service: IPedidoService;
 begin
   Result := TPedidoService.Create(TClienteRepository.Create, TProdutoRepository.Create,
-    TPedidoRepository.Create);
+    TPedidoRepository.Create, TRelogioRepository.Create);
 end;
 
 function PedidoParaJSON(APedido: TPedido; AComItens: Boolean): TJSONObject;
@@ -33,7 +34,8 @@ begin
       .AddPair('nome', APedido.NomeCliente))
     .AddPair('data', DateToISO8601(APedido.Data, False))
     .AddPair('status', APedido.Status.ToString)
-    .AddPair('valorTotal', NumeroJSON(APedido.ValorTotal));
+    .AddPair('valorTotal', NumeroJSON(APedido.ValorTotal))
+    .AddPair('atualizadoEm', DataJSON(APedido.AtualizadoEm));
 
   if not AComItens then
     Exit;
@@ -80,6 +82,7 @@ procedure Listar(AReq: THorseRequest; ARes: THorseResponse);
 var
   LPag: TPaginacao;
   LTotal: Integer;
+  LServidorEm: TDateTime;
   LLista: TObjectList<TPedido>;
   LDados: TJSONArray;
   LPedido: TPedido;
@@ -87,12 +90,12 @@ begin
   LPag := PaginacaoDaQuery(AReq);
   LLista := Service.Listar(LPag,
     AReq.Query.Field('clienteId').InvalidFormatMessage('"clienteId" deve ser um número.').AsInteger,
-    LTotal);
+    FiltroSyncDaQuery(AReq), LTotal, LServidorEm);
   try
     LDados := TJSONArray.Create;
     for LPedido in LLista do
       LDados.AddElement(PedidoParaJSON(LPedido, False));
-    ARes.Send<TJSONObject>(RespostaPaginada(LDados, LPag, LTotal));
+    ARes.Send<TJSONObject>(RespostaPaginada(LDados, LPag, LTotal, LServidorEm));
   finally
     LLista.Free;
   end;

@@ -38,6 +38,7 @@ type
     FData: TDateTime;
     FStatus: TStatusPedido;
     FValorTotal: Currency;
+    FAtualizadoEm: TDateTime;
     FItens: TObjectList<TPedidoItem>;
   public
     constructor Create;
@@ -50,6 +51,7 @@ type
     property Data: TDateTime read FData write FData;
     property Status: TStatusPedido read FStatus write FStatus;
     property ValorTotal: Currency read FValorTotal write FValorTotal;
+    property AtualizadoEm: TDateTime read FAtualizadoEm write FAtualizadoEm;
     property Itens: TObjectList<TPedidoItem> read FItens;
   end;
 

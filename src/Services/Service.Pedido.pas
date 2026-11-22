@@ -8,12 +8,14 @@ uses
   Model.Paginacao,
   Repository.Cliente,
   Repository.Produto,
-  Repository.Pedido;
+  Repository.Pedido,
+  Repository.Relogio;
 
 type
   IPedidoService = interface
     ['{2F6B8D04-A9C3-4E71-95B2-C7E1D3F0A869}']
-    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; out ATotal: Integer): TObjectList<TPedido>;
+    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; const ASync: TFiltroSync;
+      out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TPedido>;
     function Buscar(AId: Integer): TPedido;
     procedure Criar(APedido: TPedido);
     function Cancelar(AId: Integer): TPedido;
@@ -24,14 +26,17 @@ type
     FClientes: IClienteRepository;
     FProdutos: IProdutoRepository;
     FPedidos: IPedidoRepository;
+    FRelogio: IRelogioRepository;
     procedure ValidarCliente(APedido: TPedido);
     procedure PrepararItens(APedido: TPedido);
   public
     constructor Create(const AClientes: IClienteRepository;
-      const AProdutos: IProdutoRepository; const APedidos: IPedidoRepository);
+      const AProdutos: IProdutoRepository; const APedidos: IPedidoRepository;
+      const ARelogio: IRelogioRepository = nil);
 
     { AClienteId = 0 lista os pedidos de todos os clientes. }
-    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; out ATotal: Integer): TObjectList<TPedido>;
+    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; const ASync: TFiltroSync;
+      out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TPedido>;
     function Buscar(AId: Integer): TPedido;
 
     { Recebe o pedido apenas com ClienteId e itens (ProdutoId + Quantidade).
@@ -55,18 +60,21 @@ uses
   Infra.Excecoes;
 
 constructor TPedidoService.Create(const AClientes: IClienteRepository;
-  const AProdutos: IProdutoRepository; const APedidos: IPedidoRepository);
+  const AProdutos: IProdutoRepository; const APedidos: IPedidoRepository;
+  const ARelogio: IRelogioRepository);
 begin
   inherited Create;
+  FRelogio := ARelogio;
   FClientes := AClientes;
   FProdutos := AProdutos;
   FPedidos := APedidos;
 end;
 
 function TPedidoService.Listar(const APaginacao: TPaginacao; AClienteId: Integer;
-  out ATotal: Integer): TObjectList<TPedido>;
+  const ASync: TFiltroSync; out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TPedido>;
 begin
-  Result := FPedidos.Listar(APaginacao, AClienteId, ATotal);
+  AServidorEm := MarcaDeSincronizacao(FRelogio);
+  Result := FPedidos.Listar(APaginacao, AClienteId, ASync, ATotal);
 end;
 
 function TPedidoService.Buscar(AId: Integer): TPedido;

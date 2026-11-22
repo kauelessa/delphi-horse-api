@@ -30,6 +30,7 @@ uses
   Repository.Produto in 'src\Repositories\Repository.Produto.pas',
   Repository.Pedido in 'src\Repositories\Repository.Pedido.pas',
   Repository.Sessao in 'src\Repositories\Repository.Sessao.pas',
+  Repository.Relogio in 'src\Repositories\Repository.Relogio.pas',
   Service.Auth in 'src\Services\Service.Auth.pas',
   Service.Cliente in 'src\Services\Service.Cliente.pas',
   Service.Produto in 'src\Services\Service.Produto.pas',

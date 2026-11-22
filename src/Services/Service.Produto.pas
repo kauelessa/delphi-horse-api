@@ -3,12 +3,13 @@
 interface
 
 uses
-  System.Generics.Collections, Model.Produto, Model.Paginacao, Repository.Produto;
+  System.Generics.Collections, Model.Produto, Model.Paginacao, Repository.Produto, Repository.Relogio;
 
 type
   IProdutoService = interface
     ['{E4A7C1B9-2D58-4F03-A6E1-8B9D0F2C7A35}']
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TProduto>;
     function Buscar(AId: Integer): TProduto;
     function BuscarPorCodigoBarras(const ACodigo: string): TProduto;
     procedure Criar(AProduto: TProduto);
@@ -19,10 +20,12 @@ type
   TProdutoService = class(TInterfacedObject, IProdutoService)
   private
     FRepository: IProdutoRepository;
+    FRelogio: IRelogioRepository;
     procedure Validar(AProduto: TProduto);
   public
-    constructor Create(const ARepository: IProdutoRepository);
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
+    constructor Create(const ARepository: IProdutoRepository; const ARelogio: IRelogioRepository = nil);
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TProduto>;
     function Buscar(AId: Integer): TProduto;
     function BuscarPorCodigoBarras(const ACodigo: string): TProduto;
     procedure Criar(AProduto: TProduto);
@@ -35,10 +38,11 @@ implementation
 uses
   System.SysUtils, Model.CodigoBarras, Infra.Excecoes;
 
-constructor TProdutoService.Create(const ARepository: IProdutoRepository);
+constructor TProdutoService.Create(const ARepository: IProdutoRepository; const ARelogio: IRelogioRepository);
 begin
   inherited Create;
   FRepository := ARepository;
+  FRelogio := ARelogio;
 end;
 
 procedure TProdutoService.Validar(AProduto: TProduto);
@@ -75,9 +79,10 @@ begin
 end;
 
 function TProdutoService.Listar(const APaginacao: TPaginacao; const ABusca: string;
-  out ATotal: Integer): TObjectList<TProduto>;
+  const ASync: TFiltroSync; out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TProduto>;
 begin
-  Result := FRepository.Listar(APaginacao, Trim(ABusca), ATotal);
+  AServidorEm := MarcaDeSincronizacao(FRelogio);
+  Result := FRepository.Listar(APaginacao, Trim(ABusca), ASync, ATotal);
 end;
 
 function TProdutoService.Buscar(AId: Integer): TProduto;

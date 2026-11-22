@@ -54,11 +54,15 @@ type
     procedure Excluir_InativaCliente;
     [Test]
     procedure Listar_RepassaBuscaSemEspacosAoRepositorio;
+    [Test]
+    procedure Listar_ServidorEmLidoAntesDaConsultaComMargem;
   end;
 
 implementation
 
 uses
+  System.DateUtils,
+  Repository.Relogio,
   Infra.Excecoes;
 
 const
@@ -244,9 +248,32 @@ end;
 procedure TTestsClienteService.Listar_RepassaBuscaSemEspacosAoRepositorio;
 var
   LTotal: Integer;
+  LServidorEm: TDateTime;
 begin
-  FService.Listar(TPaginacao.Criar(1, 20), '  maria  ', LTotal).Free;
+  FService.Listar(TPaginacao.Criar(1, 20), '  maria  ', TFiltroSync.Nenhum, LTotal, LServidorEm).Free;
   Assert.AreEqual('maria', FRepositorio.UltimaBusca);
+end;
+
+procedure TTestsClienteService.Listar_ServidorEmLidoAntesDaConsultaComMargem;
+var
+  LRelogio: TRelogioFake;
+  LRelogioIntf: IRelogioRepository;
+  LService: IClienteService;
+  LTotal: Integer;
+  LServidorEm: TDateTime;
+begin
+  LRelogio := TRelogioFake.Create(EncodeDateTime(2026, 11, 22, 10, 0, 0, 0));
+  LRelogioIntf := LRelogio;
+  FRepositorio.Registro := LRelogio.Chamadas;
+  LService := TClienteService.Create(FRepositorioIntf, LRelogioIntf);
+
+  LService.Listar(TPaginacao.Criar(1, 20), '', TFiltroSync.APartirDe(EncodeDate(2026, 11, 1)),
+    LTotal, LServidorEm).Free;
+
+  // a marca é lida antes da consulta: o que mudar durante a consulta entra na próxima
+  Assert.AreEqual('AgoraNoServidor,Listar', LRelogio.Chamadas.CommaText);
+  // e volta 2 minutos para cobrir transação que começou antes e gravou depois
+  Assert.AreEqual(EncodeDateTime(2026, 11, 22, 9, 58, 0, 0), LServidorEm);
 end;
 
 initialization

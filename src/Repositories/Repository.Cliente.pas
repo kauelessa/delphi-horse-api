@@ -8,7 +8,8 @@ uses
 type
   IClienteRepository = interface
     ['{71B2C062-19ED-40BC-AFE0-FA17E92AEEDE}']
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente; // só ativos; nil se não achar
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
@@ -18,7 +19,8 @@ type
 
   TClienteRepository = class(TInterfacedObject, IClienteRepository)
   public
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente;
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
@@ -26,7 +28,10 @@ type
     procedure Inativar(AId: Integer);
     /// WHERE da listagem e valores dos parâmetros :BUSCA e :DOCUMENTO.
     /// O texto da busca nunca entra no SQL, só nos parâmetros.
-    class function Filtro(const ABusca: string; out ABuscaParam, ADocumentoParam: string): string; static;
+    class function Filtro(const ABusca: string; out ABuscaParam, ADocumentoParam: string): string; overload; static;
+    /// Com ASync ativo a base deixa de ser "só ativos" e passa a ser "alterados desde".
+    class function Filtro(const ABusca: string; out ABuscaParam, ADocumentoParam: string;
+      const ASync: TFiltroSync): string; overload; static;
   end;
 
 implementation
@@ -36,7 +41,16 @@ uses
   Model.Documento, Infra.Conexao, Infra.Excecoes;
 
 const
-  SQL_SELECT = 'SELECT ID, NOME, DOCUMENTO, EMAIL, TELEFONE, ATIVO FROM CLIENTES ';
+  SQL_SELECT = 'SELECT ID, NOME, DOCUMENTO, EMAIL, TELEFONE, ATIVO, ATUALIZADO_EM FROM CLIENTES ';
+
+// na sincronização a ordem precisa ser estável entre páginas mesmo com nomes iguais
+function OrdemListagem(const ASync: TFiltroSync; const AOrdemNormal: string): string;
+begin
+  if ASync.Ativo then
+    Result := ' ORDER BY ATUALIZADO_EM, ID'
+  else
+    Result := ' ORDER BY ' + AOrdemNormal;
+end;
 
 function LerCliente(AQry: TFDQuery): TCliente;
 begin
@@ -47,6 +61,7 @@ begin
   Result.Email := AQry.FieldByName('EMAIL').AsString;
   Result.Telefone := AQry.FieldByName('TELEFONE').AsString;
   Result.Ativo := AQry.FieldByName('ATIVO').AsBoolean;
+  Result.AtualizadoEm := AQry.FieldByName('ATUALIZADO_EM').AsDateTime;
 end;
 
 // email/telefone vazios vão como NULL
@@ -69,7 +84,16 @@ end;
 class function TClienteRepository.Filtro(const ABusca: string; out ABuscaParam,
   ADocumentoParam: string): string;
 begin
-  Result := 'WHERE ATIVO = TRUE';
+  Result := Filtro(ABusca, ABuscaParam, ADocumentoParam, TFiltroSync.Nenhum);
+end;
+
+class function TClienteRepository.Filtro(const ABusca: string; out ABuscaParam,
+  ADocumentoParam: string; const ASync: TFiltroSync): string;
+begin
+  if ASync.Ativo then
+    Result := 'WHERE ATUALIZADO_EM >= :DESDE'
+  else
+    Result := 'WHERE ATIVO = TRUE';
   ABuscaParam := Trim(ABusca);
   ADocumentoParam := '';
   if ABuscaParam = '' then
@@ -84,7 +108,7 @@ begin
 end;
 
 function TClienteRepository.Listar(const APaginacao: TPaginacao; const ABusca: string;
-  out ATotal: Integer): TObjectList<TCliente>;
+  const ASync: TFiltroSync; out ATotal: Integer): TObjectList<TCliente>;
 var
   LCon: TFDConnection;
   LQry: TFDQuery;
@@ -92,6 +116,8 @@ var
 
   procedure PreencherFiltro(AQry: TFDQuery);
   begin
+    if ASync.Ativo then
+      AQry.ParamByName('DESDE').AsDateTime := ASync.Desde;
     if LBusca = '' then
       Exit;
     AQry.ParamByName('BUSCA').AsString := LBusca;
@@ -100,7 +126,7 @@ var
   end;
 
 begin
-  LWhere := Filtro(ABusca, LBusca, LDocumento);
+  LWhere := Filtro(ABusca, LBusca, LDocumento, ASync);
   Result := TObjectList<TCliente>.Create;
   try
     LCon := TConexao.Criar;
@@ -113,8 +139,8 @@ begin
       ATotal := LQry.Fields[0].AsInteger;
       LQry.Close;
 
-      LQry.SQL.Text := SQL_SELECT + LWhere +
-        ' ORDER BY NOME OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
+      LQry.SQL.Text := SQL_SELECT + LWhere + OrdemListagem(ASync, 'NOME') +
+        ' OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
       PreencherFiltro(LQry);
       LQry.ParamByName('OFFSET').AsInteger := APaginacao.Offset;
       LQry.ParamByName('LIMITE').AsInteger := APaginacao.Limite;

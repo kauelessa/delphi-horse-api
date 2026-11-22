@@ -6,12 +6,14 @@ uses
   System.Generics.Collections,
   Model.Cliente,
   Model.Paginacao,
-  Repository.Cliente;
+  Repository.Cliente,
+  Repository.Relogio;
 
 type
   IClienteService = interface
     ['{B8F3A9D2-5C14-4E6B-8F27-D1A0C3E5B946}']
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TCliente>;
     function Buscar(AId: Integer): TCliente;
     procedure Criar(ACliente: TCliente);
     procedure Atualizar(ACliente: TCliente);
@@ -21,6 +23,7 @@ type
   TClienteService = class(TInterfacedObject, IClienteService)
   private
     FRepository: IClienteRepository;
+    FRelogio: IRelogioRepository;
     procedure NormalizarEValidar(ACliente: TCliente);
     procedure GarantirExistente(AId: Integer);
   public
@@ -28,8 +31,10 @@ type
     const TAMANHO_MAXIMO_EMAIL = 150;
     const TAMANHO_MAXIMO_TELEFONE = 20;
 
-    constructor Create(const ARepository: IClienteRepository);
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
+    constructor Create(const ARepository: IClienteRepository; const ARelogio: IRelogioRepository = nil);
+    { AServidorEm: marca para o próximo "desde" do app (ver Repository.Relogio). }
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TCliente>;
     { Levanta ENaoEncontrado se não existir ou estiver inativo. }
     function Buscar(AId: Integer): TCliente;
     { Normaliza, valida e grava. Preenche ACliente.Id. }
@@ -52,10 +57,11 @@ const
   // Validação propositalmente simples: algo@algo.algo, sem espaços.
   REGEX_EMAIL = '^[^@\s]+@[^@\s]+\.[^@\s]+$';
 
-constructor TClienteService.Create(const ARepository: IClienteRepository);
+constructor TClienteService.Create(const ARepository: IClienteRepository; const ARelogio: IRelogioRepository);
 begin
   inherited Create;
   FRepository := ARepository;
+  FRelogio := ARelogio;
 end;
 
 procedure TClienteService.NormalizarEValidar(ACliente: TCliente);
@@ -87,9 +93,10 @@ begin
 end;
 
 function TClienteService.Listar(const APaginacao: TPaginacao; const ABusca: string;
-  out ATotal: Integer): TObjectList<TCliente>;
+  const ASync: TFiltroSync; out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TCliente>;
 begin
-  Result := FRepository.Listar(APaginacao, Trim(ABusca), ATotal);
+  AServidorEm := MarcaDeSincronizacao(FRelogio); // antes da consulta, de propósito
+  Result := FRepository.Listar(APaginacao, Trim(ABusca), ASync, ATotal);
 end;
 
 function TClienteService.Buscar(AId: Integer): TCliente;

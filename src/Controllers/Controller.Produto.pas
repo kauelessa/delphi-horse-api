@@ -12,11 +12,12 @@ implementation
 
 uses
   System.SysUtils, System.JSON, System.Generics.Collections, Horse, Horse.Commons,
-  Model.Produto, Model.Paginacao, Repository.Produto, Service.Produto, Controller.Utils;
+  Model.Produto, Model.Paginacao, Repository.Produto, Repository.Relogio, Service.Produto,
+  Controller.Utils;
 
 function NovoService: IProdutoService;
 begin
-  Result := TProdutoService.Create(TProdutoRepository.Create);
+  Result := TProdutoService.Create(TProdutoRepository.Create, TRelogioRepository.Create);
 end;
 
 function ParaJSON(AProduto: TProduto): TJSONObject;
@@ -26,7 +27,9 @@ begin
     .AddPair('descricao', AProduto.Descricao)
     .AddPair('preco', NumeroJSON(AProduto.Preco))
     .AddPair('estoque', TJSONNumber.Create(AProduto.Estoque))
-    .AddPair('codigoBarras', AProduto.CodigoBarras);
+    .AddPair('codigoBarras', AProduto.CodigoBarras)
+    .AddPair('ativo', TJSONBool.Create(AProduto.Ativo))
+    .AddPair('atualizadoEm', DataJSON(AProduto.AtualizadoEm));
 end;
 
 function DoBody(AReq: THorseRequest): TProduto;
@@ -54,17 +57,19 @@ begin
       var
         LPag: TPaginacao;
         LTotal: Integer;
+        LServidorEm: TDateTime;
         LLista: TObjectList<TProduto>;
         LDados: TJSONArray;
         LProduto: TProduto;
       begin
         LPag := PaginacaoDaQuery(AReq);
-        LLista := NovoService.Listar(LPag, AReq.Query.Field('busca').AsString, LTotal);
+        LLista := NovoService.Listar(LPag, AReq.Query.Field('busca').AsString, FiltroSyncDaQuery(AReq),
+          LTotal, LServidorEm);
         try
           LDados := TJSONArray.Create;
           for LProduto in LLista do
             LDados.AddElement(ParaJSON(LProduto));
-          ARes.Send<TJSONObject>(RespostaPaginada(LDados, LPag, LTotal));
+          ARes.Send<TJSONObject>(RespostaPaginada(LDados, LPag, LTotal, LServidorEm));
         finally
           LLista.Free;
         end;

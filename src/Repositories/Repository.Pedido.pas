@@ -9,7 +9,8 @@ type
   IPedidoRepository = interface
     ['{9E2D7F41-3B6A-4C85-B1E0-6F4A2C8D5B17}']
     // sem itens, só o cabeçalho (evita N+1 na listagem)
-    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; out ATotal: Integer): TObjectList<TPedido>;
+    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TPedido>;
     function BuscarPorId(AId: Integer): TPedido; // com itens; nil se não achar
     procedure Inserir(APedido: TPedido);
     procedure Cancelar(APedido: TPedido);
@@ -17,8 +18,11 @@ type
 
   TPedidoRepository = class(TInterfacedObject, IPedidoRepository)
   public
-    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; out ATotal: Integer): TObjectList<TPedido>;
+    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TPedido>;
     function BuscarPorId(AId: Integer): TPedido;
+    /// WHERE da listagem ('' sem filtro); os valores vão por parâmetro.
+    class function Filtro(AClienteId: Integer; const ASync: TFiltroSync): string; static;
     procedure Inserir(APedido: TPedido);
     procedure Cancelar(APedido: TPedido);
   end;
@@ -30,7 +34,8 @@ uses
 
 const
   SQL_CABECALHO =
-    'SELECT P.ID, P.CLIENTE_ID, C.NOME AS NOME_CLIENTE, P.DATA_PEDIDO, P.STATUS, P.VALOR_TOTAL ' +
+    'SELECT P.ID, P.CLIENTE_ID, C.NOME AS NOME_CLIENTE, P.DATA_PEDIDO, P.STATUS, P.VALOR_TOTAL, ' +
+    '       P.ATUALIZADO_EM ' +
     '  FROM PEDIDOS P ' +
     '  JOIN CLIENTES C ON C.ID = P.CLIENTE_ID ';
 
@@ -43,18 +48,46 @@ begin
   Result.Data := AQry.FieldByName('DATA_PEDIDO').AsDateTime;
   Result.Status := TStatusPedido.DeTexto(AQry.FieldByName('STATUS').AsString);
   Result.ValorTotal := AQry.FieldByName('VALOR_TOTAL').AsCurrency;
+  Result.AtualizadoEm := AQry.FieldByName('ATUALIZADO_EM').AsDateTime;
+end;
+
+class function TPedidoRepository.Filtro(AClienteId: Integer; const ASync: TFiltroSync): string;
+var
+  LCondicoes: TArray<string>;
+begin
+  LCondicoes := [];
+  if AClienteId > 0 then
+    LCondicoes := LCondicoes + ['P.CLIENTE_ID = :CLIENTE_ID'];
+  if ASync.UsuarioId > 0 then
+    LCondicoes := LCondicoes + ['P.USUARIO_ID = :USUARIO_ID'];
+  if ASync.Ativo then
+    LCondicoes := LCondicoes + ['P.ATUALIZADO_EM >= :DESDE'];
+
+  if Length(LCondicoes) = 0 then
+    Result := ''
+  else
+    Result := 'WHERE ' + string.Join(' AND ', LCondicoes) + ' ';
 end;
 
 function TPedidoRepository.Listar(const APaginacao: TPaginacao; AClienteId: Integer;
-  out ATotal: Integer): TObjectList<TPedido>;
+  const ASync: TFiltroSync; out ATotal: Integer): TObjectList<TPedido>;
 var
   LCon: TFDConnection;
   LQry: TFDQuery;
   LFiltro: string;
+
+  procedure PreencherFiltro;
+  begin
+    if AClienteId > 0 then
+      LQry.ParamByName('CLIENTE_ID').AsInteger := AClienteId;
+    if ASync.UsuarioId > 0 then
+      LQry.ParamByName('USUARIO_ID').AsInteger := ASync.UsuarioId;
+    if ASync.Ativo then
+      LQry.ParamByName('DESDE').AsDateTime := ASync.Desde;
+  end;
+
 begin
-  LFiltro := '';
-  if AClienteId > 0 then
-    LFiltro := 'WHERE P.CLIENTE_ID = :CLIENTE_ID ';
+  LFiltro := Filtro(AClienteId, ASync);
 
   Result := TObjectList<TPedido>.Create;
   try
@@ -64,16 +97,17 @@ begin
       LQry.Connection := LCon;
 
       LQry.SQL.Text := 'SELECT COUNT(*) FROM PEDIDOS P ' + LFiltro;
-      if AClienteId > 0 then
-        LQry.ParamByName('CLIENTE_ID').AsInteger := AClienteId;
+      PreencherFiltro;
       LQry.Open;
       ATotal := LQry.Fields[0].AsInteger;
       LQry.Close;
 
-      LQry.SQL.Text := SQL_CABECALHO + LFiltro +
-        'ORDER BY P.ID DESC OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
-      if AClienteId > 0 then
-        LQry.ParamByName('CLIENTE_ID').AsInteger := AClienteId;
+      if ASync.Ativo then
+        LQry.SQL.Text := SQL_CABECALHO + LFiltro + 'ORDER BY P.ATUALIZADO_EM, P.ID '
+      else
+        LQry.SQL.Text := SQL_CABECALHO + LFiltro + 'ORDER BY P.ID DESC ';
+      LQry.SQL.Add('OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY');
+      PreencherFiltro;
       LQry.ParamByName('OFFSET').AsInteger := APaginacao.Offset;
       LQry.ParamByName('LIMITE').AsInteger := APaginacao.Limite;
       LQry.Open;

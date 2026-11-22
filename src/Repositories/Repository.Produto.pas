@@ -8,7 +8,8 @@ uses
 type
   IProdutoRepository = interface
     ['{4C1E6B2A-8D3F-4E57-9A06-2B7C5D9E1F34}']
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto; // só ativos; nil se não achar
     function BuscarPorCodigoBarras(const ACodigo: string): TProduto; // só ativos; nil se não achar
     // id do produto (ativo ou não) que já usa o código; 0 se livre
@@ -20,7 +21,8 @@ type
 
   TProdutoRepository = class(TInterfacedObject, IProdutoRepository)
   public
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto;
     function BuscarPorCodigoBarras(const ACodigo: string): TProduto;
     function CodigoBarrasEmUso(const ACodigo: string; AIgnorarId: Integer): Integer;
@@ -28,7 +30,9 @@ type
     procedure Atualizar(AProduto: TProduto);
     procedure Inativar(AId: Integer);
     /// WHERE da listagem e valor do parâmetro :BUSCA (nunca concatenado no SQL).
-    class function Filtro(const ABusca: string; out ABuscaParam: string): string; static;
+    class function Filtro(const ABusca: string; out ABuscaParam: string): string; overload; static;
+    class function Filtro(const ABusca: string; out ABuscaParam: string;
+      const ASync: TFiltroSync): string; overload; static;
   end;
 
 implementation
@@ -37,7 +41,7 @@ uses
   System.SysUtils, System.Variants, Data.DB, FireDAC.Comp.Client, FireDAC.Stan.Param, Infra.Conexao;
 
 const
-  CAMPOS = 'ID, DESCRICAO, PRECO, ESTOQUE, CODIGO_BARRAS, ATIVO';
+  CAMPOS = 'ID, DESCRICAO, PRECO, ESTOQUE, CODIGO_BARRAS, ATIVO, ATUALIZADO_EM';
 
 // vazio grava NULL: o índice único aceita vários NULL, mas não vários ''
 function CodigoOuNulo(const ACodigo: string): Variant;
@@ -46,6 +50,14 @@ begin
     Result := Null
   else
     Result := ACodigo;
+end;
+
+function OrdemListagem(const ASync: TFiltroSync): string;
+begin
+  if ASync.Ativo then
+    Result := ' ORDER BY ATUALIZADO_EM, ID'
+  else
+    Result := ' ORDER BY DESCRICAO';
 end;
 
 function LerProduto(AQry: TFDQuery): TProduto;
@@ -57,24 +69,34 @@ begin
   Result.Estoque := AQry.FieldByName('ESTOQUE').AsInteger;
   Result.CodigoBarras := Trim(AQry.FieldByName('CODIGO_BARRAS').AsString);
   Result.Ativo := AQry.FieldByName('ATIVO').AsBoolean;
+  Result.AtualizadoEm := AQry.FieldByName('ATUALIZADO_EM').AsDateTime;
 end;
 
 class function TProdutoRepository.Filtro(const ABusca: string; out ABuscaParam: string): string;
 begin
-  Result := 'WHERE ATIVO = TRUE';
+  Result := Filtro(ABusca, ABuscaParam, TFiltroSync.Nenhum);
+end;
+
+class function TProdutoRepository.Filtro(const ABusca: string; out ABuscaParam: string;
+  const ASync: TFiltroSync): string;
+begin
+  if ASync.Ativo then
+    Result := 'WHERE ATUALIZADO_EM >= :DESDE'
+  else
+    Result := 'WHERE ATIVO = TRUE';
   ABuscaParam := Trim(ABusca);
   if ABuscaParam <> '' then
     Result := Result + ' AND (DESCRICAO CONTAINING :BUSCA OR CODIGO_BARRAS = :BUSCA_CODIGO)';
 end;
 
 function TProdutoRepository.Listar(const APaginacao: TPaginacao; const ABusca: string;
-  out ATotal: Integer): TObjectList<TProduto>;
+  const ASync: TFiltroSync; out ATotal: Integer): TObjectList<TProduto>;
 var
   LCon: TFDConnection;
   LQry: TFDQuery;
   LWhere, LBusca: string;
 begin
-  LWhere := Filtro(ABusca, LBusca);
+  LWhere := Filtro(ABusca, LBusca, ASync);
   Result := TObjectList<TProduto>.Create;
   try
     LCon := TConexao.Criar;
@@ -82,6 +104,8 @@ begin
     try
       LQry.Connection := LCon;
       LQry.SQL.Text := 'SELECT COUNT(*) FROM PRODUTOS ' + LWhere;
+      if ASync.Ativo then
+        LQry.ParamByName('DESDE').AsDateTime := ASync.Desde;
       if LBusca <> '' then
       begin
         LQry.ParamByName('BUSCA').AsString := LBusca;
@@ -92,8 +116,10 @@ begin
       LQry.Close;
 
       LQry.SQL.Text :=
-        'SELECT ' + CAMPOS + ' FROM PRODUTOS ' + LWhere +
-        ' ORDER BY DESCRICAO OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
+        'SELECT ' + CAMPOS + ' FROM PRODUTOS ' + LWhere + OrdemListagem(ASync) +
+        ' OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
+      if ASync.Ativo then
+        LQry.ParamByName('DESDE').AsDateTime := ASync.Desde;
       if LBusca <> '' then
       begin
         LQry.ParamByName('BUSCA').AsString := LBusca;

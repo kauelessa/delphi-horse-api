@@ -259,8 +259,9 @@ end;
 procedure TTestsProdutoService.Listar_RepassaBuscaSemEspacosAoRepositorio;
 var
   LTotal: Integer;
+  LServidorEm: TDateTime;
 begin
-  FService.Listar(TPaginacao.Criar(1, 20), '  maria  ', LTotal).Free;
+  FService.Listar(TPaginacao.Criar(1, 20), '  maria  ', TFiltroSync.Nenhum, LTotal, LServidorEm).Free;
   Assert.AreEqual('maria', FRepositorio.UltimaBusca);
 end;
 

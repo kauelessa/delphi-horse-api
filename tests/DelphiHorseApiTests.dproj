@@ -172,6 +172,7 @@
         <DCCReference Include="..\src\Repositories\Repository.Produto.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Pedido.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Sessao.pas"/>
+        <DCCReference Include="..\src\Repositories\Repository.Relogio.pas"/>
         <DCCReference Include="..\src\Services\Service.Auth.pas"/>
         <DCCReference Include="..\src\Services\Service.Cliente.pas"/>
         <DCCReference Include="..\src\Services\Service.Produto.pas"/>

@@ -11,6 +11,7 @@ type
     FEstoque: Integer;
     FCodigoBarras: string;
     FAtivo: Boolean;
+    FAtualizadoEm: TDateTime;
   public
     property Id: Integer read FId write FId;
     property Descricao: string read FDescricao write FDescricao;
@@ -18,6 +19,7 @@ type
     property Estoque: Integer read FEstoque write FEstoque;
     property CodigoBarras: string read FCodigoBarras write FCodigoBarras; // vazio = sem código
     property Ativo: Boolean read FAtivo write FAtivo;
+    property AtualizadoEm: TDateTime read FAtualizadoEm write FAtualizadoEm;
   end;
 
 implementation

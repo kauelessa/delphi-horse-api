@@ -19,12 +19,51 @@ function LerInteiro(AJson: TJSONObject; const ACampo: string): Integer;
 function LerValor(AJson: TJSONObject; const ACampo: string): Currency;
 
 function NumeroJSON(AValor: Currency): TJSONNumber;
-function RespostaPaginada(ADados: TJSONArray; const APaginacao: TPaginacao; ATotal: Integer): TJSONObject;
+function RespostaPaginada(ADados: TJSONArray; const APaginacao: TPaginacao; ATotal: Integer): TJSONObject; overload;
+// com a marca "servidorEm" que o app usa como próximo "desde"
+function RespostaPaginada(ADados: TJSONArray; const APaginacao: TPaginacao; ATotal: Integer;
+  AServidorEm: TDateTime): TJSONObject; overload;
+
+// ?desde=<ISO 8601> e ?vendedor=eu
+function FiltroSyncDaQuery(AReq: THorseRequest): TFiltroSync;
+function DataJSON(AData: TDateTime): TJSONValue; // null quando zero
 
 implementation
 
 uses
-  System.SysUtils, Infra.Excecoes, Infra.Middleware.Autenticacao;
+  System.SysUtils, System.DateUtils, Infra.Excecoes, Infra.Middleware.Autenticacao;
+
+function FiltroSyncDaQuery(AReq: THorseRequest): TFiltroSync;
+var
+  LDesde, LVendedor: string;
+  LData: TDateTime;
+begin
+  Result := TFiltroSync.Nenhum;
+
+  LDesde := AReq.Query.Field('desde').AsString.Trim;
+  if LDesde <> '' then
+  begin
+    if not TryISO8601ToDate(LDesde, LData, False) then
+      raise ERequisicaoInvalida.Create('"desde" deve ser uma data ISO 8601.');
+    Result := TFiltroSync.APartirDe(LData);
+  end;
+
+  LVendedor := AReq.Query.Field('vendedor').AsString.Trim;
+  if LVendedor <> '' then
+  begin
+    if not SameText(LVendedor, 'eu') then
+      raise ERequisicaoInvalida.Create('"vendedor" aceita apenas "eu".');
+    Result.UsuarioId := UsuarioLogado(AReq);
+  end;
+end;
+
+function DataJSON(AData: TDateTime): TJSONValue;
+begin
+  if AData = 0 then
+    Result := TJSONNull.Create
+  else
+    Result := TJSONString.Create(DateToISO8601(AData, False));
+end;
 
 function UsuarioLogado(AReq: THorseRequest): Integer;
 var
@@ -121,6 +160,13 @@ begin
     .AddPair('pagina', TJSONNumber.Create(APaginacao.Pagina))
     .AddPair('limite', TJSONNumber.Create(APaginacao.Limite))
     .AddPair('total', TJSONNumber.Create(ATotal));
+end;
+
+function RespostaPaginada(ADados: TJSONArray; const APaginacao: TPaginacao; ATotal: Integer;
+  AServidorEm: TDateTime): TJSONObject;
+begin
+  Result := RespostaPaginada(ADados, APaginacao, ATotal)
+    .AddPair('servidorEm', DateToISO8601(AServidorEm, False));
 end;
 
 end.

@@ -16,12 +16,15 @@ uses
   Repository.Produto,
   Repository.Pedido,
   Model.Sessao,
-  Repository.Sessao;
+  Repository.Sessao,
+  Repository.Relogio,
+  System.Classes;
 
 type
   TClienteRepositoryFake = class(TInterfacedObject, IClienteRepository)
   private
     FClientes: TObjectList<TCliente>;
+    FRegistro: TStrings;
     FProximoId: Integer;
     FUltimaBusca: string;
     function Localizar(AId: Integer): TCliente;
@@ -32,7 +35,10 @@ type
     function Obter(AId: Integer): TCliente; // sem cópia, para asserts
     property UltimaBusca: string read FUltimaBusca;
 
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
+    // se atribuído, cada Listar anota 'Listar' aqui (para conferir a ordem das chamadas)
+    property Registro: TStrings read FRegistro write FRegistro;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente;
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
@@ -54,7 +60,8 @@ type
     function Obter(AId: Integer): TProduto;
     property UltimaBusca: string read FUltimaBusca;
 
-    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto;
     function BuscarPorCodigoBarras(const ACodigo: string): TProduto;
     function CodigoBarrasEmUso(const ACodigo: string; AIgnorarId: Integer): Integer;
@@ -76,7 +83,8 @@ type
     property Cancelamentos: Integer read FCancelamentos;
     function Quantidade: Integer;
 
-    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; out ATotal: Integer): TObjectList<TPedido>;
+    function Listar(const APaginacao: TPaginacao; AClienteId: Integer; const ASync: TFiltroSync;
+      out ATotal: Integer): TObjectList<TPedido>;
     function BuscarPorId(AId: Integer): TPedido;
     procedure Inserir(APedido: TPedido);
     procedure Cancelar(APedido: TPedido);
@@ -95,6 +103,17 @@ type
     function BuscarPorHash(const AHash: string): TSessao;
     function Revogar(AId: Integer): Boolean;
     procedure RevogarFamilia(const AFamilia: string);
+  end;
+
+  TRelogioFake = class(TInterfacedObject, IRelogioRepository)
+  private
+    FAgora: TDateTime;
+    FChamadas: TStringList;
+  public
+    constructor Create(AAgora: TDateTime);
+    destructor Destroy; override;
+    function AgoraNoServidor: TDateTime;
+    property Chamadas: TStringList read FChamadas;
   end;
 
 function ClonarCliente(AOrigem: TCliente): TCliente;
@@ -191,10 +210,12 @@ begin
 end;
 
 function TClienteRepositoryFake.Listar(const APaginacao: TPaginacao; const ABusca: string;
-  out ATotal: Integer): TObjectList<TCliente>;
+  const ASync: TFiltroSync; out ATotal: Integer): TObjectList<TCliente>;
 var
   LCliente: TCliente;
 begin
+  if Assigned(Registro) then
+    Registro.Add('Listar');
   // o filtro real é SQL (testado em Tests.Repository.Filtro); aqui só registra o que chegou
   FUltimaBusca := ABusca;
   Result := TObjectList<TCliente>.Create(True);
@@ -295,7 +316,7 @@ begin
 end;
 
 function TProdutoRepositoryFake.Listar(const APaginacao: TPaginacao; const ABusca: string;
-  out ATotal: Integer): TObjectList<TProduto>;
+  const ASync: TFiltroSync; out ATotal: Integer): TObjectList<TProduto>;
 var
   LProduto: TProduto;
 begin
@@ -397,7 +418,7 @@ begin
 end;
 
 function TPedidoRepositoryFake.Listar(const APaginacao: TPaginacao; AClienteId: Integer;
-  out ATotal: Integer): TObjectList<TPedido>;
+  const ASync: TFiltroSync; out ATotal: Integer): TObjectList<TPedido>;
 var
   LPedido: TPedido;
 begin
@@ -429,6 +450,27 @@ procedure TPedidoRepositoryFake.Cancelar(APedido: TPedido);
 begin
   Localizar(APedido.Id).Status := spCancelado;
   Inc(FCancelamentos);
+end;
+
+{ TRelogioFake }
+
+constructor TRelogioFake.Create(AAgora: TDateTime);
+begin
+  inherited Create;
+  FAgora := AAgora;
+  FChamadas := TStringList.Create;
+end;
+
+destructor TRelogioFake.Destroy;
+begin
+  FChamadas.Free;
+  inherited;
+end;
+
+function TRelogioFake.AgoraNoServidor: TDateTime;
+begin
+  FChamadas.Add('AgoraNoServidor');
+  Result := FAgora;
 end;
 
 { TSessaoRepositoryFake }

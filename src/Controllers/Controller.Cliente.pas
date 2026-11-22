@@ -12,11 +12,12 @@ implementation
 
 uses
   System.SysUtils, System.JSON, System.Generics.Collections, Horse, Horse.Commons,
-  Model.Cliente, Model.Paginacao, Repository.Cliente, Service.Cliente, Controller.Utils;
+  Model.Cliente, Model.Paginacao, Repository.Cliente, Repository.Relogio, Service.Cliente,
+  Controller.Utils;
 
 function Service: IClienteService;
 begin
-  Result := TClienteService.Create(TClienteRepository.Create);
+  Result := TClienteService.Create(TClienteRepository.Create, TRelogioRepository.Create);
 end;
 
 function ClienteParaJSON(ACliente: TCliente): TJSONObject;
@@ -26,7 +27,9 @@ begin
     .AddPair('nome', ACliente.Nome)
     .AddPair('documento', ACliente.Documento)
     .AddPair('email', ACliente.Email)
-    .AddPair('telefone', ACliente.Telefone);
+    .AddPair('telefone', ACliente.Telefone)
+    .AddPair('ativo', TJSONBool.Create(ACliente.Ativo))
+    .AddPair('atualizadoEm', DataJSON(ACliente.AtualizadoEm));
 end;
 
 function ClienteDoJSON(AJson: TJSONObject): TCliente;
@@ -47,17 +50,19 @@ procedure Listar(AReq: THorseRequest; ARes: THorseResponse);
 var
   LPag: TPaginacao;
   LTotal: Integer;
+  LServidorEm: TDateTime;
   LLista: TObjectList<TCliente>;
   LDados: TJSONArray;
   LCliente: TCliente;
 begin
   LPag := PaginacaoDaQuery(AReq);
-  LLista := Service.Listar(LPag, AReq.Query.Field('busca').AsString, LTotal);
+  LLista := Service.Listar(LPag, AReq.Query.Field('busca').AsString, FiltroSyncDaQuery(AReq),
+    LTotal, LServidorEm);
   try
     LDados := TJSONArray.Create;
     for LCliente in LLista do
       LDados.AddElement(ClienteParaJSON(LCliente));
-    ARes.Send<TJSONObject>(RespostaPaginada(LDados, LPag, LTotal));
+    ARes.Send<TJSONObject>(RespostaPaginada(LDados, LPag, LTotal, LServidorEm));
   finally
     LLista.Free;
   end;
