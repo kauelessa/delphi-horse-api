@@ -8,7 +8,7 @@ uses
 type
   IProdutoService = interface
     ['{E4A7C1B9-2D58-4F03-A6E1-8B9D0F2C7A35}']
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function Buscar(AId: Integer): TProduto;
     procedure Criar(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
@@ -21,7 +21,7 @@ type
     procedure Validar(AProduto: TProduto);
   public
     constructor Create(const ARepository: IProdutoRepository);
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function Buscar(AId: Integer): TProduto;
     procedure Criar(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
@@ -53,9 +53,10 @@ begin
     raise ERegraNegocio.Create('O estoque não pode ser negativo.');
 end;
 
-function TProdutoService.Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+function TProdutoService.Listar(const APaginacao: TPaginacao; const ABusca: string;
+  out ATotal: Integer): TObjectList<TProduto>;
 begin
-  Result := FRepository.Listar(APaginacao, ATotal);
+  Result := FRepository.Listar(APaginacao, Trim(ABusca), ATotal);
 end;
 
 function TProdutoService.Buscar(AId: Integer): TProduto;

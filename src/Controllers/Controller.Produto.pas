@@ -57,7 +57,7 @@ begin
         LProduto: TProduto;
       begin
         LPag := PaginacaoDaQuery(AReq);
-        LLista := NovoService.Listar(LPag, LTotal);
+        LLista := NovoService.Listar(LPag, AReq.Query.Field('busca').AsString, LTotal);
         try
           LDados := TJSONArray.Create;
           for LProduto in LLista do

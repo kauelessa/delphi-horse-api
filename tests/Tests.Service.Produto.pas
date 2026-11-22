@@ -8,6 +8,7 @@ uses
   Model.Produto,
   Repository.Produto,
   Service.Produto,
+  Model.Paginacao,
   Tests.Fakes;
 
 type
@@ -27,6 +28,8 @@ type
 
     [Test]
     procedure Criar_DadosValidos_GravaEAtribuiId;
+    [Test]
+    procedure Listar_RepassaBuscaSemEspacosAoRepositorio;
     [Test]
     procedure Criar_SemDescricao_LevantaRequisicaoInvalida;
     [Test]
@@ -145,6 +148,14 @@ begin
   LId := FRepositorio.Adicionar('Teclado', 349.90, 10);
   FService.Excluir(LId);
   Assert.IsFalse(FRepositorio.Obter(LId).Ativo);
+end;
+
+procedure TTestsProdutoService.Listar_RepassaBuscaSemEspacosAoRepositorio;
+var
+  LTotal: Integer;
+begin
+  FService.Listar(TPaginacao.Criar(1, 20), '  maria  ', LTotal).Free;
+  Assert.AreEqual('maria', FRepositorio.UltimaBusca);
 end;
 
 initialization

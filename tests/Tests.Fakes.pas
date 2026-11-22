@@ -21,14 +21,16 @@ type
   private
     FClientes: TObjectList<TCliente>;
     FProximoId: Integer;
+    FUltimaBusca: string;
     function Localizar(AId: Integer): TCliente;
   public
     constructor Create;
     destructor Destroy; override;
     function Adicionar(const ANome, ADocumento: string; AAtivo: Boolean = True): Integer;
     function Obter(AId: Integer): TCliente; // sem cópia, para asserts
+    property UltimaBusca: string read FUltimaBusca;
 
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente;
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
@@ -40,6 +42,7 @@ type
   private
     FProdutos: TObjectList<TProduto>;
     FProximoId: Integer;
+    FUltimaBusca: string;
     function Localizar(AId: Integer): TProduto;
   public
     constructor Create;
@@ -47,8 +50,9 @@ type
     function Adicionar(const ADescricao: string; APreco: Currency; AEstoque: Integer;
       AAtivo: Boolean = True): Integer;
     function Obter(AId: Integer): TProduto;
+    property UltimaBusca: string read FUltimaBusca;
 
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto;
     procedure Inserir(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
@@ -166,10 +170,13 @@ begin
   Result := Localizar(AId);
 end;
 
-function TClienteRepositoryFake.Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+function TClienteRepositoryFake.Listar(const APaginacao: TPaginacao; const ABusca: string;
+  out ATotal: Integer): TObjectList<TCliente>;
 var
   LCliente: TCliente;
 begin
+  // o filtro real é SQL (testado em Tests.Repository.Filtro); aqui só registra o que chegou
+  FUltimaBusca := ABusca;
   Result := TObjectList<TCliente>.Create(True);
   for LCliente in FClientes do
     if LCliente.Ativo then
@@ -267,10 +274,12 @@ begin
   Result := Localizar(AId);
 end;
 
-function TProdutoRepositoryFake.Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+function TProdutoRepositoryFake.Listar(const APaginacao: TPaginacao; const ABusca: string;
+  out ATotal: Integer): TObjectList<TProduto>;
 var
   LProduto: TProduto;
 begin
+  FUltimaBusca := ABusca;
   Result := TObjectList<TProduto>.Create(True);
   for LProduto in FProdutos do
     if LProduto.Ativo then

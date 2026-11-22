@@ -8,7 +8,7 @@ uses
 type
   IProdutoRepository = interface
     ['{4C1E6B2A-8D3F-4E57-9A06-2B7C5D9E1F34}']
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto; // só ativos; nil se não achar
     procedure Inserir(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
@@ -17,11 +17,13 @@ type
 
   TProdutoRepository = class(TInterfacedObject, IProdutoRepository)
   public
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TProduto>;
     function BuscarPorId(AId: Integer): TProduto;
     procedure Inserir(AProduto: TProduto);
     procedure Atualizar(AProduto: TProduto);
     procedure Inativar(AId: Integer);
+    /// WHERE da listagem e valor do parâmetro :BUSCA (nunca concatenado no SQL).
+    class function Filtro(const ABusca: string; out ABuscaParam: string): string; static;
   end;
 
 implementation
@@ -39,23 +41,40 @@ begin
   Result.Ativo := AQry.FieldByName('ATIVO').AsBoolean;
 end;
 
-function TProdutoRepository.Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TProduto>;
+class function TProdutoRepository.Filtro(const ABusca: string; out ABuscaParam: string): string;
+begin
+  Result := 'WHERE ATIVO = TRUE';
+  ABuscaParam := Trim(ABusca);
+  if ABuscaParam <> '' then
+    Result := Result + ' AND DESCRICAO CONTAINING :BUSCA';
+end;
+
+function TProdutoRepository.Listar(const APaginacao: TPaginacao; const ABusca: string;
+  out ATotal: Integer): TObjectList<TProduto>;
 var
   LCon: TFDConnection;
   LQry: TFDQuery;
+  LWhere, LBusca: string;
 begin
+  LWhere := Filtro(ABusca, LBusca);
   Result := TObjectList<TProduto>.Create;
   try
     LCon := TConexao.Criar;
     LQry := TFDQuery.Create(nil);
     try
       LQry.Connection := LCon;
-      ATotal := LCon.ExecSQLScalar('SELECT COUNT(*) FROM PRODUTOS WHERE ATIVO = TRUE');
+      LQry.SQL.Text := 'SELECT COUNT(*) FROM PRODUTOS ' + LWhere;
+      if LBusca <> '' then
+        LQry.ParamByName('BUSCA').AsString := LBusca;
+      LQry.Open;
+      ATotal := LQry.Fields[0].AsInteger;
+      LQry.Close;
 
       LQry.SQL.Text :=
-        'SELECT ID, DESCRICAO, PRECO, ESTOQUE, ATIVO FROM PRODUTOS ' +
-        'WHERE ATIVO = TRUE ORDER BY DESCRICAO ' +
-        'OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
+        'SELECT ID, DESCRICAO, PRECO, ESTOQUE, ATIVO FROM PRODUTOS ' + LWhere +
+        ' ORDER BY DESCRICAO OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
+      if LBusca <> '' then
+        LQry.ParamByName('BUSCA').AsString := LBusca;
       LQry.ParamByName('OFFSET').AsInteger := APaginacao.Offset;
       LQry.ParamByName('LIMITE').AsInteger := APaginacao.Limite;
       LQry.Open;

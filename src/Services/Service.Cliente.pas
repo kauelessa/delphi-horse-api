@@ -11,7 +11,7 @@ uses
 type
   IClienteService = interface
     ['{B8F3A9D2-5C14-4E6B-8F27-D1A0C3E5B946}']
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
     function Buscar(AId: Integer): TCliente;
     procedure Criar(ACliente: TCliente);
     procedure Atualizar(ACliente: TCliente);
@@ -29,7 +29,7 @@ type
     const TAMANHO_MAXIMO_TELEFONE = 20;
 
     constructor Create(const ARepository: IClienteRepository);
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
     { Levanta ENaoEncontrado se não existir ou estiver inativo. }
     function Buscar(AId: Integer): TCliente;
     { Normaliza, valida e grava. Preenche ACliente.Id. }
@@ -86,9 +86,10 @@ begin
   Buscar(AId).Free;
 end;
 
-function TClienteService.Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+function TClienteService.Listar(const APaginacao: TPaginacao; const ABusca: string;
+  out ATotal: Integer): TObjectList<TCliente>;
 begin
-  Result := FRepository.Listar(APaginacao, ATotal);
+  Result := FRepository.Listar(APaginacao, Trim(ABusca), ATotal);
 end;
 
 function TClienteService.Buscar(AId: Integer): TCliente;
