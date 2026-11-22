@@ -17,6 +17,8 @@ uses
   Model.Documento in 'src\Models\Model.Documento.pas',
   Model.Sessao in 'src\Models\Model.Sessao.pas',
   Model.CodigoBarras in 'src\Models\Model.CodigoBarras.pas',
+  Model.Imagem in 'src\Models\Model.Imagem.pas',
+  Model.Uuid in 'src\Models\Model.Uuid.pas',
   Infra.Config in 'src\Infra\Infra.Config.pas',
   Infra.Conexao in 'src\Infra\Infra.Conexao.pas',
   Infra.Excecoes in 'src\Infra\Infra.Excecoes.pas',

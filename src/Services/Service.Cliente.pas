@@ -3,6 +3,7 @@
 interface
 
 uses
+  System.SysUtils,
   System.Generics.Collections,
   Model.Cliente,
   Model.Paginacao,
@@ -15,9 +16,13 @@ type
     function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
       out ATotal: Integer; out AServidorEm: TDateTime): TObjectList<TCliente>;
     function Buscar(AId: Integer): TCliente;
-    procedure Criar(ACliente: TCliente);
+    procedure Criar(ACliente: TCliente); overload;
+    procedure Criar(ACliente: TCliente; out AJaExistia: Boolean); overload;
     procedure Atualizar(ACliente: TCliente);
     procedure Excluir(AId: Integer);
+    procedure GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+    procedure GravarFoto(AId: Integer; const AFoto: TBytes);
+    function LerFoto(AId: Integer): TBytes;
   end;
 
   TClienteService = class(TInterfacedObject, IClienteService)
@@ -26,7 +31,10 @@ type
     FRelogio: IRelogioRepository;
     procedure NormalizarEValidar(ACliente: TCliente);
     procedure GarantirExistente(AId: Integer);
+    procedure ValidarLocalizacao(ALatitude, ALongitude: Double);
+    function CarregarPorUuid(ACliente: TCliente): Boolean;
   public
+    const TAMANHO_MAXIMO_FOTO = 512000;
     const TAMANHO_MAXIMO_NOME = 100;
     const TAMANHO_MAXIMO_EMAIL = 150;
     const TAMANHO_MAXIMO_TELEFONE = 20;
@@ -38,7 +46,14 @@ type
     { Levanta ENaoEncontrado se não existir ou estiver inativo. }
     function Buscar(AId: Integer): TCliente;
     { Normaliza, valida e grava. Preenche ACliente.Id. }
-    procedure Criar(ACliente: TCliente);
+    procedure Criar(ACliente: TCliente); overload;
+    { Cliente criado no app vem com Uuid: se esse Uuid já existe (reenvio), o
+      registro existente é copiado para ACliente e AJaExistia fica True. }
+    procedure Criar(ACliente: TCliente; out AJaExistia: Boolean); overload;
+    procedure GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+    { Só JPEG, até 500 KB. }
+    procedure GravarFoto(AId: Integer; const AFoto: TBytes);
+    function LerFoto(AId: Integer): TBytes;
     { ACliente.Id indica o registro a atualizar (PUT: substitui todos os campos). }
     procedure Atualizar(ACliente: TCliente);
     { Exclusão lógica: o cliente é inativado e mantém o histórico de pedidos. }
@@ -48,9 +63,10 @@ type
 implementation
 
 uses
-  System.SysUtils,
   System.RegularExpressions,
   Model.Documento,
+  Model.Uuid,
+  Model.Imagem,
   Infra.Excecoes;
 
 const
@@ -107,14 +123,106 @@ begin
 end;
 
 procedure TClienteService.Criar(ACliente: TCliente);
+var
+  LJaExistia: Boolean;
 begin
+  Criar(ACliente, LJaExistia);
+end;
+
+procedure CopiarCliente(AOrigem, ADestino: TCliente);
+begin
+  ADestino.Id := AOrigem.Id;
+  ADestino.Nome := AOrigem.Nome;
+  ADestino.Documento := AOrigem.Documento;
+  ADestino.Email := AOrigem.Email;
+  ADestino.Telefone := AOrigem.Telefone;
+  ADestino.Ativo := AOrigem.Ativo;
+  ADestino.AtualizadoEm := AOrigem.AtualizadoEm;
+  ADestino.Uuid := AOrigem.Uuid;
+  if AOrigem.TemLocalizacao then
+    ADestino.DefinirLocalizacao(AOrigem.Latitude, AOrigem.Longitude);
+  ADestino.TemFoto := AOrigem.TemFoto;
+end;
+
+function TClienteService.CarregarPorUuid(ACliente: TCliente): Boolean;
+var
+  LExistente: TCliente;
+begin
+  LExistente := FRepository.BuscarPorUuid(ACliente.Uuid);
+  try
+    Result := LExistente <> nil;
+    if Result then
+      CopiarCliente(LExistente, ACliente);
+  finally
+    LExistente.Free;
+  end;
+end;
+
+procedure TClienteService.Criar(ACliente: TCliente; out AJaExistia: Boolean);
+begin
+  AJaExistia := False;
+  if ACliente.Uuid.Trim <> '' then
+  begin
+    if not TUuid.Valido(ACliente.Uuid.Trim) then
+      raise ERequisicaoInvalida.Create('"uuid" inválido.');
+    ACliente.Uuid := TUuid.Normalizar(ACliente.Uuid);
+    AJaExistia := CarregarPorUuid(ACliente);
+    if AJaExistia then
+      Exit;
+  end
+  else
+    ACliente.Uuid := '';
+
   NormalizarEValidar(ACliente);
+  if ACliente.TemLocalizacao then
+    ValidarLocalizacao(ACliente.Latitude, ACliente.Longitude);
 
   if FRepository.DocumentoEmUso(ACliente.Documento, 0) then
     raise ERegraNegocio.Create('Já existe um cliente com este CPF/CNPJ.');
 
   ACliente.Ativo := True;
-  FRepository.Inserir(ACliente);
+  try
+    FRepository.Inserir(ACliente);
+  except
+    // outro envio do mesmo UUID gravou entre a consulta e o insert
+    on EUuidDuplicado do
+    begin
+      AJaExistia := CarregarPorUuid(ACliente);
+      if not AJaExistia then
+        raise;
+    end;
+  end;
+end;
+
+procedure TClienteService.ValidarLocalizacao(ALatitude, ALongitude: Double);
+begin
+  if (ALatitude < -90) or (ALatitude > 90) or (ALongitude < -180) or (ALongitude > 180) then
+    raise ERequisicaoInvalida.Create('Localização inválida.');
+end;
+
+procedure TClienteService.GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+begin
+  GarantirExistente(AId);
+  ValidarLocalizacao(ALatitude, ALongitude);
+  FRepository.GravarLocalizacao(AId, ALatitude, ALongitude);
+end;
+
+procedure TClienteService.GravarFoto(AId: Integer; const AFoto: TBytes);
+begin
+  GarantirExistente(AId);
+  if not TImagem.EhJpeg(AFoto) then
+    raise ERequisicaoInvalida.Create('A foto deve ser JPEG.');
+  if Length(AFoto) > TAMANHO_MAXIMO_FOTO then
+    raise ERequisicaoInvalida.Create('Foto maior que 500 KB.');
+  FRepository.GravarFoto(AId, AFoto);
+end;
+
+function TClienteService.LerFoto(AId: Integer): TBytes;
+begin
+  GarantirExistente(AId);
+  Result := FRepository.LerFoto(AId);
+  if Length(Result) = 0 then
+    raise ENaoEncontrado.CreateFmt('Cliente %d não tem foto.', [AId]);
 end;
 
 procedure TClienteService.Atualizar(ACliente: TCliente);

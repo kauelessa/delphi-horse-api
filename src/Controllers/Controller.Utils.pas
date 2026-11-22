@@ -17,6 +17,10 @@ function UsuarioLogado(AReq: THorseRequest): Integer; // 0 em rota pública
 function LerTexto(AJson: TJSONObject; const ACampo: string): string;
 function LerInteiro(AJson: TJSONObject; const ACampo: string): Integer;
 function LerValor(AJson: TJSONObject; const ACampo: string): Currency;
+// coordenadas precisam de mais casas que o Currency (4)
+function LerDouble(AJson: TJSONObject; const ACampo: string; out AValor: Double): Boolean; // False se ausente
+// { "latitude": -23.5, "longitude": -46.6 } -> False se as duas faltarem; só uma é 400
+function LerLocalizacao(AJson: TJSONObject; out ALatitude, ALongitude: Double): Boolean;
 
 function NumeroJSON(AValor: Currency): TJSONNumber;
 function RespostaPaginada(ADados: TJSONArray; const APaginacao: TPaginacao; ATotal: Integer): TJSONObject; overload;
@@ -142,6 +146,30 @@ begin
     Exit(0);
   if not (LValor is TJSONNumber) or not TryStrToCurr(LValor.Value, Result, TFormatSettings.Invariant) then
     raise ERequisicaoInvalida.CreateFmt('"%s" deve ser um número.', [ACampo]);
+end;
+
+function LerDouble(AJson: TJSONObject; const ACampo: string; out AValor: Double): Boolean;
+var
+  LValor: TJSONValue;
+begin
+  AValor := 0;
+  LValor := Campo(AJson, ACampo);
+  if LValor = nil then
+    Exit(False);
+  if not (LValor is TJSONNumber) or not TryStrToFloat(LValor.Value, AValor, TFormatSettings.Invariant) then
+    raise ERequisicaoInvalida.CreateFmt('"%s" deve ser um número.', [ACampo]);
+  Result := True;
+end;
+
+function LerLocalizacao(AJson: TJSONObject; out ALatitude, ALongitude: Double): Boolean;
+var
+  LTemLat, LTemLon: Boolean;
+begin
+  LTemLat := LerDouble(AJson, 'latitude', ALatitude);
+  LTemLon := LerDouble(AJson, 'longitude', ALongitude);
+  if LTemLat <> LTemLon then
+    raise ERequisicaoInvalida.Create('Informe latitude e longitude juntas.');
+  Result := LTemLat;
 end;
 
 function NumeroJSON(AValor: Currency): TJSONNumber;

@@ -39,6 +39,10 @@ type
     function Status: Integer; override;
   end;
 
+  { Índice único de UUID estourou: outra requisição com o mesmo UUID gravou
+    antes (reenvio do app). Não vira resposta HTTP; o Service trata. }
+  EUuidDuplicado = class(Exception);
+
 implementation
 
 function ERequisicaoInvalida.Status: Integer;

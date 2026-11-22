@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Generics.Collections, Model.Cliente, Model.Paginacao;
+  System.SysUtils, System.Generics.Collections, Model.Cliente, Model.Paginacao;
 
 type
   IClienteRepository = interface
@@ -11,6 +11,10 @@ type
     function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
       out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente; // só ativos; nil se não achar
+    function BuscarPorUuid(const AUuid: string): TCliente; // ativo ou não; nil se não achar
+    procedure GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+    procedure GravarFoto(AId: Integer; const AFoto: TBytes);
+    function LerFoto(AId: Integer): TBytes; // vazio se não tiver
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
     procedure Atualizar(ACliente: TCliente);
@@ -22,6 +26,10 @@ type
     function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
       out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente;
+    function BuscarPorUuid(const AUuid: string): TCliente;
+    procedure GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+    procedure GravarFoto(AId: Integer; const AFoto: TBytes);
+    function LerFoto(AId: Integer): TBytes;
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
     procedure Atualizar(ACliente: TCliente);
@@ -37,11 +45,12 @@ type
 implementation
 
 uses
-  System.SysUtils, Data.DB, FireDAC.Comp.Client, FireDAC.Stan.Param, FireDAC.Stan.Error,
+  System.Classes, System.Variants, Data.DB, FireDAC.Comp.Client, FireDAC.Stan.Param, FireDAC.Stan.Error,
   Model.Documento, Infra.Conexao, Infra.Excecoes;
 
 const
-  SQL_SELECT = 'SELECT ID, NOME, DOCUMENTO, EMAIL, TELEFONE, ATIVO, ATUALIZADO_EM FROM CLIENTES ';
+  SQL_SELECT = 'SELECT ID, NOME, DOCUMENTO, EMAIL, TELEFONE, ATIVO, ATUALIZADO_EM, UUID, ' +
+    'LATITUDE, LONGITUDE, CASE WHEN FOTO IS NULL THEN FALSE ELSE TRUE END AS TEM_FOTO FROM CLIENTES ';
 
 // na sincronização a ordem precisa ser estável entre páginas mesmo com nomes iguais
 function OrdemListagem(const ASync: TFiltroSync; const AOrdemNormal: string): string;
@@ -62,6 +71,18 @@ begin
   Result.Telefone := AQry.FieldByName('TELEFONE').AsString;
   Result.Ativo := AQry.FieldByName('ATIVO').AsBoolean;
   Result.AtualizadoEm := AQry.FieldByName('ATUALIZADO_EM').AsDateTime;
+  Result.Uuid := Trim(AQry.FieldByName('UUID').AsString);
+  if not AQry.FieldByName('LATITUDE').IsNull then
+    Result.DefinirLocalizacao(AQry.FieldByName('LATITUDE').AsFloat, AQry.FieldByName('LONGITUDE').AsFloat);
+  Result.TemFoto := AQry.FieldByName('TEM_FOTO').AsBoolean;
+end;
+
+// corrida no índice único: decide se foi o UUID (reenvio) ou o documento
+procedure TratarViolacaoUnica(E: EFDDBEngineException);
+begin
+  if E.Message.ToUpper.Contains('UQ_CLIENTES_UUID') then
+    raise EUuidDuplicado.Create(E.Message);
+  raise ERegraNegocio.Create('Já existe um cliente com este CPF/CNPJ.');
 end;
 
 // email/telefone vazios vão como NULL
@@ -181,6 +202,79 @@ begin
   end;
 end;
 
+function TClienteRepository.BuscarPorUuid(const AUuid: string): TCliente;
+var
+  LCon: TFDConnection;
+  LQry: TFDQuery;
+begin
+  Result := nil;
+  LCon := TConexao.Criar;
+  LQry := TFDQuery.Create(nil);
+  try
+    LQry.Connection := LCon;
+    LQry.Open(SQL_SELECT + 'WHERE UUID = :UUID', [AUuid]);
+    if not LQry.IsEmpty then
+      Result := LerCliente(LQry);
+  finally
+    LQry.Free;
+    LCon.Free;
+  end;
+end;
+
+procedure TClienteRepository.GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+var
+  LCon: TFDConnection;
+begin
+  LCon := TConexao.Criar;
+  try
+    LCon.ExecSQL('UPDATE CLIENTES SET LATITUDE = :LAT, LONGITUDE = :LON WHERE ID = :ID',
+      [ALatitude, ALongitude, AId]);
+  finally
+    LCon.Free;
+  end;
+end;
+
+procedure TClienteRepository.GravarFoto(AId: Integer; const AFoto: TBytes);
+var
+  LCon: TFDConnection;
+  LQry: TFDQuery;
+  LStream: TBytesStream;
+begin
+  LCon := TConexao.Criar;
+  LQry := TFDQuery.Create(nil);
+  LStream := TBytesStream.Create(AFoto);
+  try
+    LQry.Connection := LCon;
+    LQry.SQL.Text := 'UPDATE CLIENTES SET FOTO = :FOTO WHERE ID = :ID';
+    LQry.ParamByName('FOTO').LoadFromStream(LStream, ftBlob);
+    LQry.ParamByName('ID').AsInteger := AId;
+    LQry.ExecSQL;
+  finally
+    LStream.Free;
+    LQry.Free;
+    LCon.Free;
+  end;
+end;
+
+function TClienteRepository.LerFoto(AId: Integer): TBytes;
+var
+  LCon: TFDConnection;
+  LQry: TFDQuery;
+begin
+  Result := nil;
+  LCon := TConexao.Criar;
+  LQry := TFDQuery.Create(nil);
+  try
+    LQry.Connection := LCon;
+    LQry.Open('SELECT FOTO FROM CLIENTES WHERE ID = :ID AND FOTO IS NOT NULL', [AId]);
+    if not LQry.IsEmpty then
+      Result := LQry.Fields[0].AsBytes;
+  finally
+    LQry.Free;
+    LCon.Free;
+  end;
+end;
+
 function TClienteRepository.DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
 var
   LCon: TFDConnection;
@@ -206,20 +300,38 @@ begin
   try
     LQry.Connection := LCon;
     LQry.SQL.Text :=
-      'INSERT INTO CLIENTES (NOME, DOCUMENTO, EMAIL, TELEFONE) ' +
-      'VALUES (:NOME, :DOCUMENTO, :EMAIL, :TELEFONE) RETURNING ID';
+      'INSERT INTO CLIENTES (NOME, DOCUMENTO, EMAIL, TELEFONE, UUID, LATITUDE, LONGITUDE) ' +
+      'VALUES (:NOME, :DOCUMENTO, :EMAIL, :TELEFONE, :UUID, :LATITUDE, :LONGITUDE) RETURNING ID, ATUALIZADO_EM';
     PreencherParams(LQry, ACliente);
+    LQry.ParamByName('UUID').DataType := ftString;
+    if ACliente.Uuid = '' then
+      LQry.ParamByName('UUID').Clear
+    else
+      LQry.ParamByName('UUID').AsString := ACliente.Uuid;
+    LQry.ParamByName('LATITUDE').DataType := ftFloat;
+    LQry.ParamByName('LONGITUDE').DataType := ftFloat;
+    if ACliente.TemLocalizacao then
+    begin
+      LQry.ParamByName('LATITUDE').AsFloat := ACliente.Latitude;
+      LQry.ParamByName('LONGITUDE').AsFloat := ACliente.Longitude;
+    end
+    else
+    begin
+      LQry.ParamByName('LATITUDE').Clear;
+      LQry.ParamByName('LONGITUDE').Clear;
+    end;
     try
       LQry.Open;
     except
-      // corrida entre dois cadastros com o mesmo documento: o UNIQUE segura
+      // corrida entre dois cadastros com o mesmo documento/UUID: o UNIQUE segura
       on E: EFDDBEngineException do
         if E.Kind = ekUKViolated then
-          raise ERegraNegocio.Create('Já existe um cliente com este CPF/CNPJ.')
+          TratarViolacaoUnica(E)
         else
           raise;
     end;
     ACliente.Id := LQry.FieldByName('ID').AsInteger;
+    ACliente.AtualizadoEm := LQry.FieldByName('ATUALIZADO_EM').AsDateTime;
   finally
     LQry.Free;
     LCon.Free;

@@ -56,6 +56,26 @@ type
     procedure Listar_RepassaBuscaSemEspacosAoRepositorio;
     [Test]
     procedure Listar_ServidorEmLidoAntesDaConsultaComMargem;
+    [Test]
+    procedure Criar_ComUuidNovo_Cria;
+    [Test]
+    procedure Criar_MesmoUuid_DevolveOExistenteSemDuplicar;
+    [Test]
+    procedure Criar_UuidMalformado_LevantaRequisicaoInvalida;
+    [Test]
+    procedure Criar_LocalizacaoForaDaFaixa_LevantaRequisicaoInvalida;
+    [Test]
+    procedure GravarLocalizacao_Valida_Grava;
+    [Test]
+    procedure GravarLocalizacao_ForaDaFaixa_NaoGrava;
+    [Test]
+    procedure GravarFoto_Jpeg_Grava;
+    [Test]
+    procedure GravarFoto_Png_NaoGrava;
+    [Test]
+    procedure GravarFoto_MaiorQue500KB_NaoGrava;
+    [Test]
+    procedure LerFoto_SemFoto_LevantaNaoEncontrado;
   end;
 
 implementation
@@ -274,6 +294,161 @@ begin
   Assert.AreEqual('AgoraNoServidor,Listar', LRelogio.Chamadas.CommaText);
   // e volta 2 minutos para cobrir transação que começou antes e gravou depois
   Assert.AreEqual(EncodeDateTime(2026, 11, 22, 9, 58, 0, 0), LServidorEm);
+end;
+
+const
+  UUID_APP = '3F2B8C1E-9D4A-4E7B-8C21-5A6F0E9D1B23';
+
+function Jpeg(ATamanho: Integer): TBytes;
+begin
+  SetLength(Result, ATamanho);
+  FillChar(Result[0], ATamanho, 0);
+  Result[0] := $FF;
+  Result[1] := $D8;
+  Result[2] := $FF;
+end;
+
+procedure TTestsClienteService.Criar_ComUuidNovo_Cria;
+var
+  LCliente: TCliente;
+  LJaExistia: Boolean;
+begin
+  LCliente := NovoCliente('Maria', CPF_VALIDO, '');
+  try
+    LCliente.Uuid := UUID_APP;
+    FService.Criar(LCliente, LJaExistia);
+    Assert.IsFalse(LJaExistia);
+    Assert.IsTrue(LCliente.Id > 0);
+    Assert.AreEqual(LowerCase(UUID_APP), FRepositorio.Obter(LCliente.Id).Uuid);
+  finally
+    LCliente.Free;
+  end;
+end;
+
+procedure TTestsClienteService.Criar_MesmoUuid_DevolveOExistenteSemDuplicar;
+var
+  LPrimeiro, LSegundo: TCliente;
+  LJaExistia: Boolean;
+begin
+  LPrimeiro := NovoCliente('Maria', CPF_VALIDO, '');
+  LSegundo := NovoCliente('Maria', CPF_VALIDO, '');
+  try
+    LPrimeiro.Uuid := UUID_APP;
+    LSegundo.Uuid := LowerCase(UUID_APP);
+    FService.Criar(LPrimeiro, LJaExistia);
+    FService.Criar(LSegundo, LJaExistia); // reenvio depois de uma queda de conexão
+
+    Assert.IsTrue(LJaExistia);
+    Assert.AreEqual(LPrimeiro.Id, LSegundo.Id);
+    Assert.AreEqual(1, FRepositorio.Insercoes);
+  finally
+    LPrimeiro.Free;
+    LSegundo.Free;
+  end;
+end;
+
+procedure TTestsClienteService.Criar_UuidMalformado_LevantaRequisicaoInvalida;
+var
+  LCliente: TCliente;
+  LJaExistia: Boolean;
+begin
+  LCliente := NovoCliente('Maria', CPF_VALIDO, '');
+  try
+    LCliente.Uuid := 'abc';
+    Assert.WillRaiseWithMessage(
+      procedure
+      begin
+        FService.Criar(LCliente, LJaExistia);
+      end,
+      ERequisicaoInvalida, '"uuid" inválido.');
+    Assert.AreEqual(0, FRepositorio.Insercoes);
+  finally
+    LCliente.Free;
+  end;
+end;
+
+procedure TTestsClienteService.Criar_LocalizacaoForaDaFaixa_LevantaRequisicaoInvalida;
+var
+  LCliente: TCliente;
+begin
+  LCliente := NovoCliente('Maria', CPF_VALIDO, '');
+  LCliente.DefinirLocalizacao(-91, -46.6);
+  VerificarCriacaoFalha(LCliente, ERequisicaoInvalida);
+  Assert.AreEqual(0, FRepositorio.Insercoes);
+end;
+
+procedure TTestsClienteService.GravarLocalizacao_Valida_Grava;
+var
+  LId: Integer;
+begin
+  LId := FRepositorio.Adicionar('Maria', CPF_VALIDO);
+  FService.GravarLocalizacao(LId, -23.561414, -46.655881);
+  Assert.IsTrue(FRepositorio.Obter(LId).TemLocalizacao);
+  Assert.AreEqual(-23.561414, FRepositorio.Obter(LId).Latitude, 0.0000001);
+end;
+
+procedure TTestsClienteService.GravarLocalizacao_ForaDaFaixa_NaoGrava;
+var
+  LId: Integer;
+begin
+  LId := FRepositorio.Adicionar('Maria', CPF_VALIDO);
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      FService.GravarLocalizacao(LId, -23.5, 181);
+    end,
+    ERequisicaoInvalida, 'Localização inválida.');
+  Assert.IsFalse(FRepositorio.Obter(LId).TemLocalizacao);
+end;
+
+procedure TTestsClienteService.GravarFoto_Jpeg_Grava;
+var
+  LId: Integer;
+begin
+  LId := FRepositorio.Adicionar('Maria', CPF_VALIDO);
+  FService.GravarFoto(LId, Jpeg(1000));
+  Assert.AreEqual(1000, Length(FService.LerFoto(LId)));
+end;
+
+procedure TTestsClienteService.GravarFoto_Png_NaoGrava;
+var
+  LId: Integer;
+begin
+  LId := FRepositorio.Adicionar('Maria', CPF_VALIDO);
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      FService.GravarFoto(LId, TBytes.Create($89, $50, $4E, $47, $0D, $0A, $1A, $0A));
+    end,
+    ERequisicaoInvalida, 'A foto deve ser JPEG.');
+  Assert.AreEqual(0, FRepositorio.FotosGravadas);
+end;
+
+procedure TTestsClienteService.GravarFoto_MaiorQue500KB_NaoGrava;
+var
+  LId: Integer;
+begin
+  LId := FRepositorio.Adicionar('Maria', CPF_VALIDO);
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      FService.GravarFoto(LId, Jpeg(512001));
+    end,
+    ERequisicaoInvalida, 'Foto maior que 500 KB.');
+  Assert.AreEqual(0, FRepositorio.FotosGravadas);
+end;
+
+procedure TTestsClienteService.LerFoto_SemFoto_LevantaNaoEncontrado;
+var
+  LId: Integer;
+begin
+  LId := FRepositorio.Adicionar('Maria', CPF_VALIDO);
+  Assert.WillRaise(
+    procedure
+    begin
+      FService.LerFoto(LId);
+    end,
+    ENaoEncontrado);
 end;
 
 initialization

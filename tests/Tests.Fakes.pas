@@ -18,6 +18,7 @@ uses
   Model.Sessao,
   Repository.Sessao,
   Repository.Relogio,
+  System.SysUtils,
   System.Classes;
 
 type
@@ -25,6 +26,8 @@ type
   private
     FClientes: TObjectList<TCliente>;
     FRegistro: TStrings;
+    FFotos: TDictionary<Integer, TBytes>;
+    FInsercoes: Integer;
     FProximoId: Integer;
     FUltimaBusca: string;
     function Localizar(AId: Integer): TCliente;
@@ -37,6 +40,12 @@ type
 
     // se atribuído, cada Listar anota 'Listar' aqui (para conferir a ordem das chamadas)
     property Registro: TStrings read FRegistro write FRegistro;
+    property Insercoes: Integer read FInsercoes;
+    function FotosGravadas: Integer;
+    function BuscarPorUuid(const AUuid: string): TCliente;
+    procedure GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+    procedure GravarFoto(AId: Integer; const AFoto: TBytes);
+    function LerFoto(AId: Integer): TBytes;
     function Listar(const APaginacao: TPaginacao; const ABusca: string; const ASync: TFiltroSync;
       out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente;
@@ -130,6 +139,10 @@ begin
   Result.Documento := AOrigem.Documento;
   Result.Email := AOrigem.Email;
   Result.Telefone := AOrigem.Telefone;
+  Result.Uuid := AOrigem.Uuid;
+  if AOrigem.TemLocalizacao then
+    Result.DefinirLocalizacao(AOrigem.Latitude, AOrigem.Longitude);
+  Result.TemFoto := AOrigem.TemFoto;
   Result.Ativo := AOrigem.Ativo;
 end;
 
@@ -170,12 +183,14 @@ end;
 constructor TClienteRepositoryFake.Create;
 begin
   inherited Create;
+  FFotos := TDictionary<Integer, TBytes>.Create;
   FClientes := TObjectList<TCliente>.Create(True);
   FProximoId := 1;
 end;
 
 destructor TClienteRepositoryFake.Destroy;
 begin
+  FFotos.Free;
   FClientes.Free;
   inherited;
 end;
@@ -245,8 +260,41 @@ begin
   Result := False;
 end;
 
+function TClienteRepositoryFake.FotosGravadas: Integer;
+begin
+  Result := FFotos.Count;
+end;
+
+function TClienteRepositoryFake.BuscarPorUuid(const AUuid: string): TCliente;
+var
+  LCliente: TCliente;
+begin
+  for LCliente in FClientes do
+    if (LCliente.Uuid <> '') and (LCliente.Uuid = AUuid) then
+      Exit(ClonarCliente(LCliente));
+  Result := nil;
+end;
+
+procedure TClienteRepositoryFake.GravarLocalizacao(AId: Integer; ALatitude, ALongitude: Double);
+begin
+  Localizar(AId).DefinirLocalizacao(ALatitude, ALongitude);
+end;
+
+procedure TClienteRepositoryFake.GravarFoto(AId: Integer; const AFoto: TBytes);
+begin
+  FFotos.AddOrSetValue(AId, Copy(AFoto));
+  Localizar(AId).TemFoto := True;
+end;
+
+function TClienteRepositoryFake.LerFoto(AId: Integer): TBytes;
+begin
+  if not FFotos.TryGetValue(AId, Result) then
+    Result := nil;
+end;
+
 procedure TClienteRepositoryFake.Inserir(ACliente: TCliente);
 begin
+  Inc(FInsercoes);
   ACliente.Id := FProximoId;
   Inc(FProximoId);
   FClientes.Add(ClonarCliente(ACliente));
