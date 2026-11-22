@@ -28,6 +28,9 @@ type
     FMouseId: Integer;
     function NovoPedido(AClienteId: Integer): TPedido;
     procedure VerificarCriacaoFalha(APedido: TPedido; AExcecao: ExceptClass);
+    function PedidoDoApp: TPedido;
+    function ServiceComRelogio: IPedidoService;
+    procedure VerificarRecusa(APedido: TPedido; AExcecao: ExceptClass; const AMensagem: string);
   public
     [Setup]
     procedure Setup;
@@ -62,12 +65,46 @@ type
     procedure Cancelar_PedidoJaCancelado_LevantaRegraNegocio;
     [Test]
     procedure Cancelar_Inexistente_LevantaNaoEncontrado;
+    [Test]
+    procedure PedidoDoAppGuardaVendedorLocalEOrigem;
+    [Test]
+    procedure MesmoUuidNaoDuplica;
+    [Test]
+    procedure CorridaNoUuidDevolveOExistente;
+    [Test]
+    procedure UuidMalformadoRecusado;
+    [Test]
+    procedure DataForaDoIntervaloRecusada;
+    [Test]
+    procedure DataDoAppDentroDoIntervaloMantida;
+    [Test]
+    procedure AssinaturaQueNaoEhPngRecusada;
+    [Test]
+    procedure AssinaturaGrandeRecusada;
+    [Test]
+    procedure ObservacaoLongaRecusada;
+    [Test]
+    procedure PedidoDoAppContinuaConferindoEstoque;
   end;
 
 implementation
 
 uses
+  System.DateUtils,
+  Repository.Relogio,
   Infra.Excecoes;
+
+const
+  UUID_PEDIDO = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+  AGORA_TESTE: TDateTime = 46348.5; // 22/11/2026 12:00
+
+function Png(ATamanho: Integer): TBytes;
+begin
+  SetLength(Result, ATamanho);
+  FillChar(Result[0], ATamanho, 0);
+  Result[0] := $89; Result[1] := $50; Result[2] := $4E; Result[3] := $47;
+  Result[4] := $0D; Result[5] := $0A; Result[6] := $1A; Result[7] := $0A;
+end;
 
 procedure TTestsPedidoService.Setup;
 begin
@@ -281,6 +318,177 @@ begin
       FService.Cancelar(999).Free;
     end,
     ENaoEncontrado);
+end;
+
+function TTestsPedidoService.PedidoDoApp: TPedido;
+begin
+  Result := NovoPedido(FClienteId);
+  Result.Uuid := UUID_PEDIDO;
+  Result.UsuarioId := 2;
+  Result.AdicionarItem(FTecladoId, 1);
+end;
+
+function TTestsPedidoService.ServiceComRelogio: IPedidoService;
+begin
+  Result := TPedidoService.Create(FClientesIntf, FProdutosIntf, FPedidosIntf,
+    TRelogioFake.Create(AGORA_TESTE));
+end;
+
+procedure TTestsPedidoService.VerificarRecusa(APedido: TPedido; AExcecao: ExceptClass;
+  const AMensagem: string);
+var
+  LService: IPedidoService;
+  LJaExistia: Boolean;
+begin
+  LService := ServiceComRelogio;
+  try
+    Assert.WillRaiseWithMessage(
+      procedure
+      begin
+        LService.Criar(APedido, LJaExistia);
+      end,
+      AExcecao, AMensagem);
+    Assert.AreEqual(0, FPedidos.Quantidade, 'nada deveria ter sido gravado');
+  finally
+    APedido.Free;
+  end;
+end;
+
+procedure TTestsPedidoService.PedidoDoAppGuardaVendedorLocalEOrigem;
+var
+  LPedido: TPedido;
+  LJaExistia: Boolean;
+  LGravado: TPedido;
+begin
+  LPedido := PedidoDoApp;
+  try
+    LPedido.DefinirLocalizacao(-23.55, -46.63, 8);
+    LPedido.Observacao := 'Entregar pela manhã';
+    FService.Criar(LPedido, LJaExistia);
+
+    Assert.IsFalse(LJaExistia);
+    LGravado := FPedidos.Obter(LPedido.Id);
+    Assert.AreEqual(2, LGravado.UsuarioId);
+    Assert.IsTrue(LGravado.Origem = opApp);
+    Assert.IsTrue(LGravado.TemLocalizacao);
+    Assert.AreEqual(8.0, LGravado.Precisao, 0.001);
+    Assert.AreEqual('Entregar pela manhã', LGravado.Observacao);
+    Assert.AreEqual(UUID_PEDIDO, LGravado.Uuid);
+  finally
+    LPedido.Free;
+  end;
+end;
+
+procedure TTestsPedidoService.MesmoUuidNaoDuplica;
+var
+  P1, P2: TPedido;
+  LJaExistia: Boolean;
+begin
+  P1 := PedidoDoApp;
+  P2 := PedidoDoApp;
+  try
+    FService.Criar(P1, LJaExistia);
+    FService.Criar(P2, LJaExistia);
+    Assert.IsTrue(LJaExistia);
+    Assert.AreEqual(P1.Id, P2.Id);
+    Assert.AreEqual(1, FPedidos.Quantidade);
+    Assert.AreEqual<Currency>(P1.ValorTotal, P2.ValorTotal);
+  finally
+    P1.Free;
+    P2.Free;
+  end;
+end;
+
+procedure TTestsPedidoService.CorridaNoUuidDevolveOExistente;
+var
+  LPedido: TPedido;
+  LJaExistia: Boolean;
+begin
+  // outra requisição com o mesmo UUID grava entre a consulta e o insert
+  FPedidos.SimularCorridaDeUuid := True;
+  LPedido := PedidoDoApp;
+  try
+    FService.Criar(LPedido, LJaExistia);
+    Assert.IsTrue(LJaExistia);
+    Assert.AreEqual(1, FPedidos.Quantidade);
+    Assert.IsTrue(LPedido.Id > 0);
+  finally
+    LPedido.Free;
+  end;
+end;
+
+procedure TTestsPedidoService.UuidMalformadoRecusado;
+var
+  LPedido: TPedido;
+begin
+  LPedido := PedidoDoApp;
+  LPedido.Uuid := 'nao-e-uuid';
+  VerificarRecusa(LPedido, ERequisicaoInvalida, '"uuid" inválido.');
+end;
+
+procedure TTestsPedidoService.DataForaDoIntervaloRecusada;
+var
+  LPedido: TPedido;
+begin
+  LPedido := PedidoDoApp;
+  LPedido.Data := IncDay(AGORA_TESTE, -31);
+  VerificarRecusa(LPedido, ERegraNegocio, 'Data do pedido fora do intervalo aceito.');
+
+  LPedido := PedidoDoApp;
+  LPedido.Data := IncMinute(AGORA_TESTE, 11);
+  VerificarRecusa(LPedido, ERegraNegocio, 'Data do pedido fora do intervalo aceito.');
+end;
+
+procedure TTestsPedidoService.DataDoAppDentroDoIntervaloMantida;
+var
+  LPedido: TPedido;
+  LJaExistia: Boolean;
+begin
+  LPedido := PedidoDoApp;
+  try
+    // feito offline ontem, sincronizado hoje: vale a hora do aparelho
+    LPedido.Data := IncDay(AGORA_TESTE, -1);
+    ServiceComRelogio.Criar(LPedido, LJaExistia);
+    Assert.AreEqual(IncDay(AGORA_TESTE, -1), FPedidos.Obter(LPedido.Id).Data);
+  finally
+    LPedido.Free;
+  end;
+end;
+
+procedure TTestsPedidoService.AssinaturaQueNaoEhPngRecusada;
+var
+  LPedido: TPedido;
+begin
+  LPedido := PedidoDoApp;
+  LPedido.Assinatura := TEncoding.UTF8.GetBytes('não sou png');
+  VerificarRecusa(LPedido, ERequisicaoInvalida, 'A assinatura deve ser PNG.');
+end;
+
+procedure TTestsPedidoService.AssinaturaGrandeRecusada;
+var
+  LPedido: TPedido;
+begin
+  LPedido := PedidoDoApp;
+  LPedido.Assinatura := Png(204801);
+  VerificarRecusa(LPedido, ERequisicaoInvalida, 'Assinatura maior que 200 KB.');
+end;
+
+procedure TTestsPedidoService.ObservacaoLongaRecusada;
+var
+  LPedido: TPedido;
+begin
+  LPedido := PedidoDoApp;
+  LPedido.Observacao := StringOfChar('x', 501);
+  VerificarRecusa(LPedido, ERegraNegocio, 'A observação deve ter no máximo 500 caracteres.');
+end;
+
+procedure TTestsPedidoService.PedidoDoAppContinuaConferindoEstoque;
+var
+  LPedido: TPedido;
+begin
+  LPedido := PedidoDoApp;
+  LPedido.Itens[0].Quantidade := 999;
+  VerificarRecusa(LPedido, ERegraNegocio, 'Estoque insuficiente para "Teclado" (disponível: 10).');
 end;
 
 initialization

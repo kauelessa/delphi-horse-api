@@ -11,10 +11,10 @@ type
 implementation
 
 uses
-  System.SysUtils, System.JSON, System.DateUtils, System.Generics.Collections,
+  System.SysUtils, System.Classes, System.JSON, System.DateUtils, System.Generics.Collections,
   Horse, Horse.Commons, Model.Pedido, Model.Paginacao, Repository.Cliente,
   Repository.Produto, Repository.Pedido, Repository.Relogio, Service.Pedido, Controller.Utils,
-  Infra.Excecoes;
+  Model.Imagem, Infra.Excecoes;
 
 function Service: IPedidoService;
 begin
@@ -35,7 +35,30 @@ begin
     .AddPair('data', DateToISO8601(APedido.Data, False))
     .AddPair('status', APedido.Status.ToString)
     .AddPair('valorTotal', NumeroJSON(APedido.ValorTotal))
+    .AddPair('origem', APedido.Origem.ToString)
+    .AddPair('observacao', APedido.Observacao)
+    .AddPair('temAssinatura', TJSONBool.Create(APedido.TemAssinatura))
     .AddPair('atualizadoEm', DataJSON(APedido.AtualizadoEm));
+
+  if APedido.Uuid = '' then
+    Result.AddPair('uuid', TJSONNull.Create)
+  else
+    Result.AddPair('uuid', APedido.Uuid);
+
+  if APedido.UsuarioId = 0 then
+    Result.AddPair('vendedor', TJSONNull.Create)
+  else
+    Result.AddPair('vendedor', TJSONObject.Create
+      .AddPair('id', TJSONNumber.Create(APedido.UsuarioId))
+      .AddPair('nome', APedido.NomeVendedor));
+
+  if APedido.TemLocalizacao then
+    Result.AddPair('localizacao', TJSONObject.Create
+      .AddPair('latitude', TJSONNumber.Create(APedido.Latitude))
+      .AddPair('longitude', TJSONNumber.Create(APedido.Longitude))
+      .AddPair('precisao', TJSONNumber.Create(APedido.Precisao)))
+  else
+    Result.AddPair('localizacao', TJSONNull.Create);
 
   if not AComItens then
     Exit;
@@ -53,10 +76,13 @@ begin
 end;
 
 // { "clienteId": 1, "itens": [ { "produtoId": 2, "quantidade": 3 } ] }
+// do app vem também: uuid, dataPedido, latitude/longitude/precisao, observacao, assinatura (PNG base64)
 function PedidoDoJSON(AJson: TJSONObject): TPedido;
 var
   LItens: TJSONValue;
   LItem: TJSONValue;
+  LLat, LLon, LPrecisao: Double;
+  LData, LAssinatura: string;
 begin
   LItens := AJson.GetValue('itens');
   if not (LItens is TJSONArray) then
@@ -65,6 +91,22 @@ begin
   Result := TPedido.Create;
   try
     Result.ClienteId := LerInteiro(AJson, 'clienteId');
+    Result.Uuid := LerTexto(AJson, 'uuid');
+    Result.Observacao := LerTexto(AJson, 'observacao');
+
+    LData := LerTexto(AJson, 'dataPedido');
+    if LData <> '' then
+      Result.Data := ISO8601ToDateValidado(LData, 'dataPedido');
+
+    if LerLocalizacao(AJson, LLat, LLon) then
+    begin
+      LerDouble(AJson, 'precisao', LPrecisao);
+      Result.DefinirLocalizacao(LLat, LLon, LPrecisao);
+    end;
+
+    LAssinatura := LerTexto(AJson, 'assinatura');
+    if LAssinatura <> '' then
+      Result.Assinatura := TImagem.DeBase64(LAssinatura);
     for LItem in TJSONArray(LItens) do
     begin
       if not (LItem is TJSONObject) then
@@ -116,13 +158,30 @@ end;
 procedure Criar(AReq: THorseRequest; ARes: THorseResponse);
 var
   LPedido: TPedido;
+  LJaExistia: Boolean;
 begin
   LPedido := PedidoDoJSON(CorpoJSON(AReq));
   try
-    Service.Criar(LPedido);
-    ARes.Send<TJSONObject>(PedidoParaJSON(LPedido, True)).Status(THTTPStatus.Created);
+    LPedido.UsuarioId := UsuarioLogado(AReq); // vendedor é quem está logado, nunca o corpo
+    Service.Criar(LPedido, LJaExistia);
+    if LJaExistia then
+      ARes.Send<TJSONObject>(PedidoParaJSON(LPedido, True)).Status(THTTPStatus.OK)
+    else
+      ARes.Send<TJSONObject>(PedidoParaJSON(LPedido, True)).Status(THTTPStatus.Created);
   finally
     LPedido.Free;
+  end;
+end;
+
+procedure LerAssinatura(AReq: THorseRequest; ARes: THorseResponse);
+var
+  LStream: TBytesStream;
+begin
+  LStream := TBytesStream.Create(Service.LerAssinatura(IdDaRota(AReq)));
+  try
+    ARes.SendFile(LStream, 'assinatura.png', 'image/png');
+  finally
+    LStream.Free;
   end;
 end;
 
@@ -145,6 +204,7 @@ begin
     .Post(Criar);
 
   THorse.Get('/pedidos/:id', Buscar);
+  THorse.Get('/pedidos/:id/assinatura', LerAssinatura);
   // cancelar é uma ação, não uma troca de recurso inteiro: PATCH num sub-recurso
   THorse.Patch('/pedidos/:id/cancelar', Cancelar);
 end;

@@ -31,6 +31,8 @@ function RespostaPaginada(ADados: TJSONArray; const APaginacao: TPaginacao; ATot
 // ?desde=<ISO 8601> e ?vendedor=eu
 function FiltroSyncDaQuery(AReq: THorseRequest): TFiltroSync;
 function DataJSON(AData: TDateTime): TJSONValue; // null quando zero
+// texto ISO 8601 do corpo; inválido vira 400 citando o campo
+function ISO8601ToDateValidado(const ATexto, ACampo: string): TDateTime;
 
 implementation
 
@@ -59,6 +61,12 @@ begin
       raise ERequisicaoInvalida.Create('"vendedor" aceita apenas "eu".');
     Result.UsuarioId := UsuarioLogado(AReq);
   end;
+end;
+
+function ISO8601ToDateValidado(const ATexto, ACampo: string): TDateTime;
+begin
+  if not TryISO8601ToDate(ATexto, Result, False) then
+    raise ERequisicaoInvalida.CreateFmt('"%s" deve ser uma data ISO 8601.', [ACampo]);
 end;
 
 function DataJSON(AData: TDateTime): TJSONValue;

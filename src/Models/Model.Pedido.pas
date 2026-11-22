@@ -3,10 +3,18 @@
 interface
 
 uses
-  System.Generics.Collections;
+  System.SysUtils, System.Generics.Collections;
 
 type
   TStatusPedido = (spAberto, spCancelado);
+
+  // API = criado direto na API (cliente VCL, Postman); APP = veio do app de força de vendas
+  TOrigemPedido = (opApi, opApp);
+
+  TOrigemPedidoHelper = record helper for TOrigemPedido
+    function ToString: string;
+    class function DeTexto(const AValor: string): TOrigemPedido; static;
+  end;
 
   TStatusPedidoHelper = record helper for TStatusPedido
     function ToString: string;
@@ -40,10 +48,24 @@ type
     FValorTotal: Currency;
     FAtualizadoEm: TDateTime;
     FItens: TObjectList<TPedidoItem>;
+    FUuid: string;
+    FUsuarioId: Integer;
+    FNomeVendedor: string;
+    FLatitude: Double;
+    FLongitude: Double;
+    FPrecisao: Double;
+    FTemLocalizacao: Boolean;
+    FObservacao: string;
+    FOrigem: TOrigemPedido;
+    FAssinatura: TBytes;
+    FTemAssinatura: Boolean;
   public
     constructor Create;
     destructor Destroy; override;
     function AdicionarItem(AProdutoId, AQuantidade: Integer): TPedidoItem;
+    procedure DefinirLocalizacao(ALatitude, ALongitude, APrecisao: Double);
+    // cópia completa, com itens (usada quando o pedido já existia pelo UUID)
+    procedure Assign(AOrigem: TPedido);
 
     property Id: Integer read FId write FId;
     property ClienteId: Integer read FClienteId write FClienteId;
@@ -52,13 +74,40 @@ type
     property Status: TStatusPedido read FStatus write FStatus;
     property ValorTotal: Currency read FValorTotal write FValorTotal;
     property AtualizadoEm: TDateTime read FAtualizadoEm write FAtualizadoEm;
+    property Uuid: string read FUuid write FUuid;
+    property UsuarioId: Integer read FUsuarioId write FUsuarioId; // vendedor; 0 nos antigos
+    property NomeVendedor: string read FNomeVendedor write FNomeVendedor;
+    property Latitude: Double read FLatitude;
+    property Longitude: Double read FLongitude;
+    property Precisao: Double read FPrecisao; // metros
+    property TemLocalizacao: Boolean read FTemLocalizacao;
+    property Observacao: string read FObservacao write FObservacao;
+    property Origem: TOrigemPedido read FOrigem write FOrigem;
+    // PNG; só vem preenchida na criação. Na leitura do banco vale TemAssinatura.
+    property Assinatura: TBytes read FAssinatura write FAssinatura;
+    property TemAssinatura: Boolean read FTemAssinatura write FTemAssinatura;
     property Itens: TObjectList<TPedidoItem> read FItens;
   end;
 
 implementation
 
-uses
-  System.SysUtils;
+{ TOrigemPedidoHelper }
+
+function TOrigemPedidoHelper.ToString: string;
+begin
+  case Self of
+    opApi: Result := 'API';
+    opApp: Result := 'APP';
+  end;
+end;
+
+class function TOrigemPedidoHelper.DeTexto(const AValor: string): TOrigemPedido;
+begin
+  if SameText(AValor, 'APP') then
+    Result := opApp
+  else
+    Result := opApi;
+end;
 
 { TStatusPedidoHelper }
 
@@ -92,6 +141,48 @@ destructor TPedido.Destroy;
 begin
   FItens.Free;
   inherited;
+end;
+
+procedure TPedido.DefinirLocalizacao(ALatitude, ALongitude, APrecisao: Double);
+begin
+  FLatitude := ALatitude;
+  FLongitude := ALongitude;
+  FPrecisao := APrecisao;
+  FTemLocalizacao := True;
+end;
+
+procedure TPedido.Assign(AOrigem: TPedido);
+var
+  LItem, LNovo: TPedidoItem;
+begin
+  FId := AOrigem.Id;
+  FClienteId := AOrigem.ClienteId;
+  FNomeCliente := AOrigem.NomeCliente;
+  FData := AOrigem.Data;
+  FStatus := AOrigem.Status;
+  FValorTotal := AOrigem.ValorTotal;
+  FAtualizadoEm := AOrigem.AtualizadoEm;
+  FUuid := AOrigem.Uuid;
+  FUsuarioId := AOrigem.UsuarioId;
+  FNomeVendedor := AOrigem.NomeVendedor;
+  FLatitude := AOrigem.Latitude;
+  FLongitude := AOrigem.Longitude;
+  FPrecisao := AOrigem.Precisao;
+  FTemLocalizacao := AOrigem.TemLocalizacao;
+  FObservacao := AOrigem.Observacao;
+  FOrigem := AOrigem.Origem;
+  FAssinatura := Copy(AOrigem.Assinatura);
+  FTemAssinatura := AOrigem.TemAssinatura;
+
+  FItens.Clear;
+  for LItem in AOrigem.Itens do
+  begin
+    LNovo := AdicionarItem(LItem.ProdutoId, LItem.Quantidade);
+    LNovo.Id := LItem.Id;
+    LNovo.DescricaoProduto := LItem.DescricaoProduto;
+    LNovo.PrecoUnitario := LItem.PrecoUnitario;
+    LNovo.ValorTotal := LItem.ValorTotal;
+  end;
 end;
 
 function TPedido.AdicionarItem(AProdutoId, AQuantidade: Integer): TPedidoItem;

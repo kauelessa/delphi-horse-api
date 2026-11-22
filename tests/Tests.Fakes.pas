@@ -91,6 +91,10 @@ type
     function Obter(AId: Integer): TPedido;
     property Cancelamentos: Integer read FCancelamentos;
     function Quantidade: Integer;
+    // Inserir grava "a outra requisição" e levanta EUuidDuplicado, como o índice único faria
+    var SimularCorridaDeUuid: Boolean;
+    function BuscarPorUuid(const AUuid: string): TPedido;
+    function LerAssinatura(AId: Integer): TBytes;
 
     function Listar(const APaginacao: TPaginacao; AClienteId: Integer; const ASync: TFiltroSync;
       out ATotal: Integer): TObjectList<TPedido>;
@@ -131,6 +135,9 @@ function ClonarPedido(AOrigem: TPedido): TPedido;
 
 implementation
 
+uses
+  Infra.Excecoes;
+
 function ClonarCliente(AOrigem: TCliente): TCliente;
 begin
   Result := TCliente.Create;
@@ -158,24 +165,9 @@ begin
 end;
 
 function ClonarPedido(AOrigem: TPedido): TPedido;
-var
-  LItem, LNovo: TPedidoItem;
 begin
   Result := TPedido.Create;
-  Result.Id := AOrigem.Id;
-  Result.ClienteId := AOrigem.ClienteId;
-  Result.NomeCliente := AOrigem.NomeCliente;
-  Result.Data := AOrigem.Data;
-  Result.Status := AOrigem.Status;
-  Result.ValorTotal := AOrigem.ValorTotal;
-  for LItem in AOrigem.Itens do
-  begin
-    LNovo := Result.AdicionarItem(LItem.ProdutoId, LItem.Quantidade);
-    LNovo.Id := LItem.Id;
-    LNovo.DescricaoProduto := LItem.DescricaoProduto;
-    LNovo.PrecoUnitario := LItem.PrecoUnitario;
-    LNovo.ValorTotal := LItem.ValorTotal;
-  end;
+  Result.Assign(AOrigem);
 end;
 
 { TClienteRepositoryFake }
@@ -487,8 +479,39 @@ begin
   Result := ClonarPedido(LPedido);
 end;
 
-procedure TPedidoRepositoryFake.Inserir(APedido: TPedido);
+function TPedidoRepositoryFake.BuscarPorUuid(const AUuid: string): TPedido;
+var
+  LPedido: TPedido;
 begin
+  for LPedido in FPedidos do
+    if (LPedido.Uuid <> '') and (LPedido.Uuid = AUuid) then
+      Exit(ClonarPedido(LPedido));
+  Result := nil;
+end;
+
+function TPedidoRepositoryFake.LerAssinatura(AId: Integer): TBytes;
+var
+  LPedido: TPedido;
+begin
+  LPedido := Localizar(AId);
+  if LPedido = nil then
+    Exit(nil);
+  Result := Copy(LPedido.Assinatura);
+end;
+
+procedure TPedidoRepositoryFake.Inserir(APedido: TPedido);
+var
+  LOutro: TPedido;
+begin
+  if SimularCorridaDeUuid then
+  begin
+    SimularCorridaDeUuid := False;
+    LOutro := ClonarPedido(APedido);
+    LOutro.Id := FProximoId;
+    Inc(FProximoId);
+    FPedidos.Add(LOutro);
+    raise EUuidDuplicado.Create('UQ_PEDIDOS_UUID');
+  end;
   APedido.Id := FProximoId;
   Inc(FProximoId);
   FPedidos.Add(ClonarPedido(APedido));
