@@ -2,7 +2,10 @@
 
 API REST desenvolvida em **Delphi** com o framework **[Horse](https://github.com/HashLoad/horse)** e banco de dados **Firebird**, com autenticação **JWT** e arquitetura em camadas.
 
-> Faz parte do meu portfólio. É a base de um ecossistema com o cliente desktop [delphi-vcl-client](https://github.com/kauelessa/delphi-vcl-client) (VCL + DevExpress), que consome todos os endpoints desta API, e futuramente um app mobile (FireMonkey).
+> Faz parte do meu portfólio. É a base de um ecossistema:
+> - o cliente desktop [delphi-vcl-client](https://github.com/kauelessa/delphi-vcl-client) (VCL + DevExpress) consome todos os endpoints desta API e cria os pedidos;
+> - o [delphi-emissor-nfe](https://github.com/kauelessa/delphi-emissor-nfe) (ACBr) fatura esses pedidos como NF-e, lendo-os de `GET /pedidos` e `GET /clientes/:id`;
+> - futuramente, um app mobile (FireMonkey).
 
 ## 🎯 Objetivo
 
