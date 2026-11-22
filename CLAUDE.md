@@ -8,7 +8,7 @@ API REST em Delphi usando o framework Horse e banco Firebird 5.0. Faz parte do p
 
 ## Ambiente
 
-- Delphi / RAD Studio (Community Edition ou superior). A compilação e o design de forms são feitos no RAD Studio; o Claude Code edita `.pas`, `.dpr`, scripts SQL e documentação pelo VS Code.
+- Delphi / RAD Studio (Community Edition ou superior). A compilação e o design de forms são feitos no RAD Studio; o Claude Code edita `.pas`, `.dpr`, `.dproj`, `.dfm`, `.res`, scripts SQL e documentação pelo VS Code.
 - Se uma unit nova precisar ser adicionada ao projeto, registre-a no `uses` do `.dpr` e no `.dproj`.
 - Codificação: todo `.pas` e `.dpr` deve ser salvo em **UTF-8 com BOM**. Sem o BOM, o compilador do Delphi lê o arquivo como ANSI (Windows-1252) e corrompe strings acentuadas (`'Configuração'` vira `'ConfiguraÃ§Ã£o'`). Ao criar um arquivo novo, garanta o BOM (`EF BB BF`) no início; ao editar, preserve-o.
 - Dependências gerenciadas pelo Boss (`boss.json`). Não versionar a pasta `modules/`.
