@@ -87,6 +87,8 @@ type
     [Test]
     procedure PedidoDoAppContinuaConferindoEstoque;
     [Test]
+    procedure Criar_DevolveOPedidoComoFicouGravado;
+    [Test]
     procedure Faturar_PedidoAberto_GravaANota;
     [Test]
     procedure Faturar_PedidoCancelado_Conflito;
@@ -497,6 +499,21 @@ begin
   LPedido := PedidoDoApp;
   LPedido.Observacao := StringOfChar('x', 501);
   VerificarRecusa(LPedido, ERegraNegocio, 'A observação deve ter no máximo 500 caracteres.');
+end;
+
+procedure TTestsPedidoService.Criar_DevolveOPedidoComoFicouGravado;
+var
+  LPedido: TPedido;
+  LJaExistia: Boolean;
+begin
+  // o nome do vendedor vem do JOIN com USUARIOS na leitura; a resposta do 201 precisa dele
+  LPedido := PedidoDoApp;
+  try
+    FService.Criar(LPedido, LJaExistia);
+    Assert.AreEqual('Ana Vendedora', LPedido.NomeVendedor);
+  finally
+    LPedido.Free;
+  end;
 end;
 
 procedure TTestsPedidoService.PedidoDoAppContinuaConferindoEstoque;

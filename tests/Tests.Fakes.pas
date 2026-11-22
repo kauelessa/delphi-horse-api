@@ -536,6 +536,9 @@ begin
   APedido.Id := FProximoId;
   Inc(FProximoId);
   FPedidos.Add(ClonarPedido(APedido));
+  // como o JOIN com USUARIOS do repositório real: o nome só aparece na leitura
+  if APedido.UsuarioId = 2 then
+    FPedidos.Last.NomeVendedor := 'Ana Vendedora';
 end;
 
 procedure TPedidoRepositoryFake.Cancelar(APedido: TPedido);

@@ -36,6 +36,7 @@ type
     procedure PrepararItens(APedido: TPedido);
     procedure ValidarDadosDoApp(APedido: TPedido);
     function CarregarPorUuid(APedido: TPedido): Boolean;
+    procedure Recarregar(APedido: TPedido);
     function Agora: TDateTime;
   public
     constructor Create(const AClientes: IClienteRepository;
@@ -181,6 +182,19 @@ begin
     Result := Now;
 end;
 
+procedure TPedidoService.Recarregar(APedido: TPedido);
+var
+  LGravado: TPedido;
+begin
+  LGravado := FPedidos.BuscarPorId(APedido.Id);
+  try
+    if LGravado <> nil then
+      APedido.Assign(LGravado);
+  finally
+    LGravado.Free;
+  end;
+end;
+
 function TPedidoService.CarregarPorUuid(APedido: TPedido): Boolean;
 var
   LExistente: TPedido;
@@ -253,6 +267,7 @@ begin
   APedido.Status := spAberto;
   try
     FPedidos.Inserir(APedido);
+    Recarregar(APedido); // nome do vendedor e demais campos montados na leitura
   except
     // o mesmo pedido chegou duas vezes ao mesmo tempo e o outro gravou primeiro
     on EUuidDuplicado do
