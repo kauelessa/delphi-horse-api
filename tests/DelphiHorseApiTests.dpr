@@ -35,7 +35,8 @@ uses
   Tests.Service.Auth in 'Tests.Service.Auth.pas',
   Tests.Service.Cliente in 'Tests.Service.Cliente.pas',
   Tests.Service.Produto in 'Tests.Service.Produto.pas',
-  Tests.Service.Pedido in 'Tests.Service.Pedido.pas';
+  Tests.Service.Pedido in 'Tests.Service.Pedido.pas',
+  Tests.Repository.Filtro in 'Tests.Repository.Filtro.pas';
 
 var
   LRunner: ITestRunner;

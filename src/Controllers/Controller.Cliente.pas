@@ -52,7 +52,7 @@ var
   LCliente: TCliente;
 begin
   LPag := PaginacaoDaQuery(AReq);
-  LLista := Service.Listar(LPag, LTotal);
+  LLista := Service.Listar(LPag, AReq.Query.Field('busca').AsString, LTotal);
   try
     LDados := TJSONArray.Create;
     for LCliente in LLista do

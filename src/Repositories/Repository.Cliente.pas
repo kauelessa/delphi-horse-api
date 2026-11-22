@@ -8,7 +8,7 @@ uses
 type
   IClienteRepository = interface
     ['{71B2C062-19ED-40BC-AFE0-FA17E92AEEDE}']
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente; // só ativos; nil se não achar
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
@@ -18,19 +18,22 @@ type
 
   TClienteRepository = class(TInterfacedObject, IClienteRepository)
   public
-    function Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+    function Listar(const APaginacao: TPaginacao; const ABusca: string; out ATotal: Integer): TObjectList<TCliente>;
     function BuscarPorId(AId: Integer): TCliente;
     function DocumentoEmUso(const ADocumento: string; AIgnorarId: Integer): Boolean;
     procedure Inserir(ACliente: TCliente);
     procedure Atualizar(ACliente: TCliente);
     procedure Inativar(AId: Integer);
+    /// WHERE da listagem e valores dos parâmetros :BUSCA e :DOCUMENTO.
+    /// O texto da busca nunca entra no SQL, só nos parâmetros.
+    class function Filtro(const ABusca: string; out ABuscaParam, ADocumentoParam: string): string; static;
   end;
 
 implementation
 
 uses
   System.SysUtils, Data.DB, FireDAC.Comp.Client, FireDAC.Stan.Param, FireDAC.Stan.Error,
-  Infra.Conexao, Infra.Excecoes;
+  Model.Documento, Infra.Conexao, Infra.Excecoes;
 
 const
   SQL_SELECT = 'SELECT ID, NOME, DOCUMENTO, EMAIL, TELEFONE, ATIVO FROM CLIENTES ';
@@ -63,21 +66,56 @@ begin
   Opcional('TELEFONE', ACliente.Telefone);
 end;
 
-function TClienteRepository.Listar(const APaginacao: TPaginacao; out ATotal: Integer): TObjectList<TCliente>;
+class function TClienteRepository.Filtro(const ABusca: string; out ABuscaParam,
+  ADocumentoParam: string): string;
+begin
+  Result := 'WHERE ATIVO = TRUE';
+  ABuscaParam := Trim(ABusca);
+  ADocumentoParam := '';
+  if ABuscaParam = '' then
+    Exit;
+
+  // documento é gravado normalizado, então "529.982.247-25" precisa virar "52998224725"
+  ADocumentoParam := TDocumento.Normalizar(ABuscaParam);
+  if ADocumentoParam = '' then
+    Result := Result + ' AND (NOME CONTAINING :BUSCA)'
+  else
+    Result := Result + ' AND (NOME CONTAINING :BUSCA OR DOCUMENTO CONTAINING :DOCUMENTO)';
+end;
+
+function TClienteRepository.Listar(const APaginacao: TPaginacao; const ABusca: string;
+  out ATotal: Integer): TObjectList<TCliente>;
 var
   LCon: TFDConnection;
   LQry: TFDQuery;
+  LWhere, LBusca, LDocumento: string;
+
+  procedure PreencherFiltro(AQry: TFDQuery);
+  begin
+    if LBusca = '' then
+      Exit;
+    AQry.ParamByName('BUSCA').AsString := LBusca;
+    if LDocumento <> '' then
+      AQry.ParamByName('DOCUMENTO').AsString := LDocumento;
+  end;
+
 begin
+  LWhere := Filtro(ABusca, LBusca, LDocumento);
   Result := TObjectList<TCliente>.Create;
   try
     LCon := TConexao.Criar;
     LQry := TFDQuery.Create(nil);
     try
       LQry.Connection := LCon;
-      ATotal := LCon.ExecSQLScalar('SELECT COUNT(*) FROM CLIENTES WHERE ATIVO = TRUE');
+      LQry.SQL.Text := 'SELECT COUNT(*) FROM CLIENTES ' + LWhere;
+      PreencherFiltro(LQry);
+      LQry.Open;
+      ATotal := LQry.Fields[0].AsInteger;
+      LQry.Close;
 
-      LQry.SQL.Text := SQL_SELECT +
-        'WHERE ATIVO = TRUE ORDER BY NOME OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
+      LQry.SQL.Text := SQL_SELECT + LWhere +
+        ' ORDER BY NOME OFFSET :OFFSET ROWS FETCH NEXT :LIMITE ROWS ONLY';
+      PreencherFiltro(LQry);
       LQry.ParamByName('OFFSET').AsInteger := APaginacao.Offset;
       LQry.ParamByName('LIMITE').AsInteger := APaginacao.Limite;
       LQry.Open;

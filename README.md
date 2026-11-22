@@ -2,7 +2,7 @@
 
 API REST desenvolvida em **Delphi** com o framework **[Horse](https://github.com/HashLoad/horse)** e banco de dados **Firebird**, com autenticação **JWT** e arquitetura em camadas.
 
-> Faz parte do meu portfólio. É a base de um ecossistema que terá também um cliente desktop (VCL) e um app mobile (FireMonkey) consumindo esta API.
+> Faz parte do meu portfólio. É a base de um ecossistema com o cliente desktop [delphi-vcl-client](https://github.com/kauelessa/delphi-vcl-client) (VCL + DevExpress), que consome todos os endpoints desta API, e futuramente um app mobile (FireMonkey).
 
 ## 🎯 Objetivo
 
@@ -138,6 +138,13 @@ Outros corpos de requisição prontos (válidos e inválidos, para ver as respos
 
 `GET /pedidos` também aceita `?clienteId=1`.
 
+`GET /clientes` e `/produtos` aceitam `?busca=` (combinável com a paginação; o `total` passa a contar só o que foi encontrado):
+
+- **Clientes**: procura o texto no nome, sem diferenciar maiúsculas, e no documento comparando só letras e números. `?busca=maria`, `?busca=529.982.247-25` e `?busca=52998224725` funcionam.
+- **Produtos**: procura o texto na descrição, sem diferenciar maiúsculas.
+
+O texto é tratado literalmente (`%` e `_` não são curingas) e vai para o SQL só como parâmetro. A comparação diferencia acentos: `mecânico` encontra "Teclado mecânico", `mecanico` não.
+
 ### Erros
 
 Formato `{ "erro": "mensagem" }`:
@@ -167,12 +174,12 @@ Formato `{ "erro": "mensagem" }`:
 |---|---|---|---|
 | GET | `/health` | Verifica se a API está no ar | ✅ Pronto |
 | POST | `/auth/login` | Gera o token JWT | ✅ Pronto |
-| GET | `/clientes` | Lista clientes (paginado) | ✅ Pronto |
+| GET | `/clientes` | Lista clientes (paginado, busca por nome ou documento) | ✅ Pronto |
 | GET | `/clientes/:id` | Busca cliente por ID | ✅ Pronto |
 | POST | `/clientes` | Cadastra cliente | ✅ Pronto |
 | PUT | `/clientes/:id` | Atualiza cliente | ✅ Pronto |
 | DELETE | `/clientes/:id` | Inativa cliente | ✅ Pronto |
-| GET | `/produtos` | Lista produtos (paginado) | ✅ Pronto |
+| GET | `/produtos` | Lista produtos (paginado, busca por descrição) | ✅ Pronto |
 | GET | `/produtos/:id` | Busca produto por ID | ✅ Pronto |
 | POST | `/produtos` | Cadastra produto | ✅ Pronto |
 | PUT | `/produtos/:id` | Atualiza produto (inclui ajuste de estoque) | ✅ Pronto |

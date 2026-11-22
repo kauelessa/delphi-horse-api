@@ -8,6 +8,7 @@ uses
   Model.Cliente,
   Repository.Cliente,
   Service.Cliente,
+  Model.Paginacao,
   Tests.Fakes;
 
 type
@@ -51,6 +52,8 @@ type
     procedure Atualizar_DocumentoDeOutroCliente_LevantaRegraNegocio;
     [Test]
     procedure Excluir_InativaCliente;
+    [Test]
+    procedure Listar_RepassaBuscaSemEspacosAoRepositorio;
   end;
 
 implementation
@@ -236,6 +239,14 @@ begin
       FService.Buscar(LId).Free;
     end,
     ENaoEncontrado);
+end;
+
+procedure TTestsClienteService.Listar_RepassaBuscaSemEspacosAoRepositorio;
+var
+  LTotal: Integer;
+begin
+  FService.Listar(TPaginacao.Criar(1, 20), '  maria  ', LTotal).Free;
+  Assert.AreEqual('maria', FRepositorio.UltimaBusca);
 end;
 
 initialization
