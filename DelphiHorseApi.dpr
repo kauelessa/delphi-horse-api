@@ -20,12 +20,15 @@ uses
   Model.Imagem in 'src\Models\Model.Imagem.pas',
   Model.Uuid in 'src\Models\Model.Uuid.pas',
   Model.Visita in 'src\Models\Model.Visita.pas',
+  Model.Relatorio in 'src\Models\Model.Relatorio.pas',
   Infra.Config in 'src\Infra\Infra.Config.pas',
   Infra.Conexao in 'src\Infra\Infra.Conexao.pas',
   Infra.Excecoes in 'src\Infra\Infra.Excecoes.pas',
   Infra.Senha in 'src\Infra\Infra.Senha.pas',
   Infra.Token in 'src\Infra\Infra.Token.pas',
   Infra.JWT in 'src\Infra\Infra.JWT.pas',
+  Infra.Relatorio in 'src\Infra\Infra.Relatorio.pas',
+  Infra.Relatorio.Fortes in 'src\Infra\Infra.Relatorio.Fortes.pas',
   Infra.Middleware.Erros in 'src\Infra\Infra.Middleware.Erros.pas',
   Infra.Middleware.Autenticacao in 'src\Infra\Infra.Middleware.Autenticacao.pas',
   Repository.Usuario in 'src\Repositories\Repository.Usuario.pas',
@@ -35,11 +38,13 @@ uses
   Repository.Sessao in 'src\Repositories\Repository.Sessao.pas',
   Repository.Relogio in 'src\Repositories\Repository.Relogio.pas',
   Repository.Visita in 'src\Repositories\Repository.Visita.pas',
+  Repository.Relatorio in 'src\Repositories\Repository.Relatorio.pas',
   Service.Auth in 'src\Services\Service.Auth.pas',
   Service.Cliente in 'src\Services\Service.Cliente.pas',
   Service.Produto in 'src\Services\Service.Produto.pas',
   Service.Pedido in 'src\Services\Service.Pedido.pas',
   Service.Visita in 'src\Services\Service.Visita.pas',
+  Service.Relatorio in 'src\Services\Service.Relatorio.pas',
   Controller.Utils in 'src\Controllers\Controller.Utils.pas',
   Controller.Health in 'src\Controllers\Controller.Health.pas',
   Controller.Auth in 'src\Controllers\Controller.Auth.pas',
@@ -47,6 +52,7 @@ uses
   Controller.Produto in 'src\Controllers\Controller.Produto.pas',
   Controller.Pedido in 'src\Controllers\Controller.Pedido.pas',
   Controller.Visita in 'src\Controllers\Controller.Visita.pas',
+  Controller.Relatorio in 'src\Controllers\Controller.Relatorio.pas',
   Infra.Migracao in 'src\Infra\Infra.Migracao.pas';
 
 var
@@ -56,6 +62,13 @@ begin
   {$IFDEF DEBUG}
   ReportMemoryLeaksOnShutdown := True;
   {$ENDIF}
+
+  // motores de relatório disponíveis nesta compilação (FastReport só com a diretiva FASTREPORT)
+  TRegistroGeradores.Registrar(mrFortes,
+    function: IGeradorRelatorio
+    begin
+      Result := TGeradorFortes.Create;
+    end);
 
   try
     TConfig.Carregar(TConfig.ArquivoPadrao);
@@ -92,6 +105,7 @@ begin
   TControllerProduto.Registrar;
   TControllerPedido.Registrar;
   TControllerVisita.Registrar;
+  TControllerRelatorio.Registrar;
 
   THorse.Listen(TConfig.PortaServidor,
     procedure

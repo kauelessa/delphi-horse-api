@@ -163,6 +163,7 @@
         <DCCReference Include="..\src\Models\Model.Imagem.pas"/>
         <DCCReference Include="..\src\Models\Model.Uuid.pas"/>
         <DCCReference Include="..\src\Models\Model.Visita.pas"/>
+        <DCCReference Include="..\src\Models\Model.Relatorio.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Config.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Conexao.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Migracao.pas"/>
@@ -170,6 +171,8 @@
         <DCCReference Include="..\src\Infra\Infra.Senha.pas"/>
         <DCCReference Include="..\src\Infra\Infra.Token.pas"/>
         <DCCReference Include="..\src\Infra\Infra.JWT.pas"/>
+        <DCCReference Include="..\src\Infra\Infra.Relatorio.pas"/>
+        <DCCReference Include="..\src\Infra\Infra.Relatorio.Fortes.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Usuario.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Cliente.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Produto.pas"/>
@@ -177,11 +180,13 @@
         <DCCReference Include="..\src\Repositories\Repository.Sessao.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Relogio.pas"/>
         <DCCReference Include="..\src\Repositories\Repository.Visita.pas"/>
+        <DCCReference Include="..\src\Repositories\Repository.Relatorio.pas"/>
         <DCCReference Include="..\src\Services\Service.Auth.pas"/>
         <DCCReference Include="..\src\Services\Service.Cliente.pas"/>
         <DCCReference Include="..\src\Services\Service.Produto.pas"/>
         <DCCReference Include="..\src\Services\Service.Pedido.pas"/>
         <DCCReference Include="..\src\Services\Service.Visita.pas"/>
+        <DCCReference Include="..\src\Services\Service.Relatorio.pas"/>
         <DCCReference Include="Tests.Fakes.pas"/>
         <DCCReference Include="Tests.Infra.Senha.pas"/>
         <DCCReference Include="Tests.Infra.Migracao.pas"/>
@@ -195,6 +200,8 @@
         <DCCReference Include="Tests.Model.CodigoBarras.pas"/>
         <DCCReference Include="Tests.Model.Imagem.pas"/>
         <DCCReference Include="Tests.Service.Visita.pas"/>
+        <DCCReference Include="Tests.Service.Relatorio.pas"/>
+        <DCCReference Include="Tests.Infra.Relatorio.Fortes.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

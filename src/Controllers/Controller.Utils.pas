@@ -49,7 +49,7 @@ begin
   LDesde := AReq.Query.Field('desde').AsString.Trim;
   if LDesde <> '' then
   begin
-    if not TryISO8601ToDate(LDesde, LData, False) then
+    if not LerDataISO(LDesde, LData) then
       raise ERequisicaoInvalida.Create('"desde" deve ser uma data ISO 8601.');
     Result := TFiltroSync.APartirDe(LData);
   end;
@@ -65,7 +65,7 @@ end;
 
 function ISO8601ToDateValidado(const ATexto, ACampo: string): TDateTime;
 begin
-  if not TryISO8601ToDate(ATexto, Result, False) then
+  if not LerDataISO(ATexto, Result) then
     raise ERequisicaoInvalida.CreateFmt('"%s" deve ser uma data ISO 8601.', [ACampo]);
 end;
 

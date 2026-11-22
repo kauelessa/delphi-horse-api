@@ -19,6 +19,7 @@ uses
   Model.Imagem in '..\src\Models\Model.Imagem.pas',
   Model.Uuid in '..\src\Models\Model.Uuid.pas',
   Model.Visita in '..\src\Models\Model.Visita.pas',
+  Model.Relatorio in '..\src\Models\Model.Relatorio.pas',
   Infra.Config in '..\src\Infra\Infra.Config.pas',
   Infra.Conexao in '..\src\Infra\Infra.Conexao.pas',
   Infra.Migracao in '..\src\Infra\Infra.Migracao.pas',
@@ -26,6 +27,8 @@ uses
   Infra.Senha in '..\src\Infra\Infra.Senha.pas',
   Infra.Token in '..\src\Infra\Infra.Token.pas',
   Infra.JWT in '..\src\Infra\Infra.JWT.pas',
+  Infra.Relatorio in '..\src\Infra\Infra.Relatorio.pas',
+  Infra.Relatorio.Fortes in '..\src\Infra\Infra.Relatorio.Fortes.pas',
   Repository.Usuario in '..\src\Repositories\Repository.Usuario.pas',
   Repository.Cliente in '..\src\Repositories\Repository.Cliente.pas',
   Repository.Produto in '..\src\Repositories\Repository.Produto.pas',
@@ -33,11 +36,13 @@ uses
   Repository.Sessao in '..\src\Repositories\Repository.Sessao.pas',
   Repository.Relogio in '..\src\Repositories\Repository.Relogio.pas',
   Repository.Visita in '..\src\Repositories\Repository.Visita.pas',
+  Repository.Relatorio in '..\src\Repositories\Repository.Relatorio.pas',
   Service.Auth in '..\src\Services\Service.Auth.pas',
   Service.Cliente in '..\src\Services\Service.Cliente.pas',
   Service.Produto in '..\src\Services\Service.Produto.pas',
   Service.Pedido in '..\src\Services\Service.Pedido.pas',
   Service.Visita in '..\src\Services\Service.Visita.pas',
+  Service.Relatorio in '..\src\Services\Service.Relatorio.pas',
   Tests.Fakes in 'Tests.Fakes.pas',
   Tests.Infra.Senha in 'Tests.Infra.Senha.pas',
   Tests.Infra.Migracao in 'Tests.Infra.Migracao.pas',
@@ -50,7 +55,9 @@ uses
   Tests.Infra.JWT in 'Tests.Infra.JWT.pas',
   Tests.Model.CodigoBarras in 'Tests.Model.CodigoBarras.pas',
   Tests.Model.Imagem in 'Tests.Model.Imagem.pas',
-  Tests.Service.Visita in 'Tests.Service.Visita.pas';
+  Tests.Service.Visita in 'Tests.Service.Visita.pas',
+  Tests.Service.Relatorio in 'Tests.Service.Relatorio.pas',
+  Tests.Infra.Relatorio.Fortes in 'Tests.Infra.Relatorio.Fortes.pas';
 
 var
   LRunner: ITestRunner;

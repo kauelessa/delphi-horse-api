@@ -25,7 +25,36 @@ const
   LIMITE_PADRAO = 20;
   LIMITE_MAXIMO = 100;
 
+{ Datas ISO 8601 vindas de query string ou JSON. Com fuso ("Z", "-03:00")
+  a data é convertida para a hora local da API. Sem fuso ("2026-11-01",
+  "2026-11-01T08:30:00") vale como está: é a data de quem pediu. A RTL
+  trataria a falta de fuso como UTC e deslocaria o dia. }
+function LerDataISO(const ATexto: string; out AData: TDateTime): Boolean;
+
 implementation
+
+uses
+  System.SysUtils, System.DateUtils;
+
+function LerDataISO(const ATexto: string; out AData: TDateTime): Boolean;
+var
+  LTexto, LHora: string;
+  LPosT: Integer;
+  LTemFuso: Boolean;
+begin
+  LTexto := ATexto.Trim;
+  if LTexto = '' then
+    Exit(False);
+  LPosT := LTexto.IndexOf('T');
+  LTemFuso := False;
+  if LPosT >= 0 then
+  begin
+    LHora := LTexto.Substring(LPosT + 1);
+    LTemFuso := LHora.EndsWith('Z', True) or LHora.Contains('+') or LHora.Contains('-');
+  end;
+  // AReturnUTC = True devolve o valor sem converter; é o que queremos quando não há fuso
+  Result := TryISO8601ToDate(LTexto, AData, not LTemFuso);
+end;
 
 class function TPaginacao.Criar(APagina, ALimite: Integer): TPaginacao;
 begin

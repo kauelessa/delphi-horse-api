@@ -39,6 +39,12 @@ type
     function Status: Integer; override;
   end;
 
+  { 501 - recurso não incluído nesta compilação (ex.: FastReport sem a diretiva FASTREPORT) }
+  ENaoImplementado = class(EApiErro)
+  public
+    function Status: Integer; override;
+  end;
+
   { 422 - dados válidos sintaticamente, mas que violam regra de negócio }
   ERegraNegocio = class(EApiErro)
   public
@@ -69,6 +75,11 @@ end;
 function EConflito.Status: Integer;
 begin
   Result := 409;
+end;
+
+function ENaoImplementado.Status: Integer;
+begin
+  Result := 501;
 end;
 
 function ERegraNegocio.Status: Integer;
