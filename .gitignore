@@ -89,3 +89,6 @@ modules/
 
 # Saída dos testes DUnitX
 dunitx-results.xml
+
+# área de trabalho do Claude Code (superpowers)
+.superpowers/

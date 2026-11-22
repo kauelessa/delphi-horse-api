@@ -71,6 +71,8 @@ Ao subir, a API cria o banco se ele não existir (com `CriarBanco=1`) e aplica o
 | `002_seed_usuario_admin.sql` | usuário `admin` / senha `admin123` | só com `ExecutarSeeds=1` |
 | `003_create_tables_vendas.sql` | clientes, produtos e pedidos | sempre |
 | `004_seed_dados_exemplo.sql` | clientes e produtos de exemplo | só com `ExecutarSeeds=1` |
+| `005_forca_vendas.sql` | app Força de Vendas: código de barras, UUID, localização, foto, assinatura, faturamento, visitas, sessões e `ATUALIZADO_EM` | sempre |
+| `006_seed_forca_vendas.sql` | vendedora `ana` / senha `ana123`, códigos de barras e coordenadas de exemplo | só com `ExecutarSeeds=1` |
 
 Configuração na seção `[Migracao]` do `config.ini`:
 

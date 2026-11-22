@@ -1,0 +1,23 @@
+/*
+  006 - Dados de exemplo do app Força de Vendas (só DESENVOLVIMENTO)
+  Vendedora: login ana / senha ana123 (fictícia)
+  Códigos de barras: EAN-13 fictícios com dígito verificador válido
+  Coordenadas: pontos fictícios em São Paulo
+*/
+
+INSERT INTO USUARIOS (NOME, LOGIN, SENHA_HASH, ATIVO)
+VALUES (
+  'Ana Vendedora',
+  'ana',
+  'pbkdf2-sha256$100000$6Qup6gy2hrgDfp6bbKHC/w==$v0m3bO86xwBO+ps5QkF5oqNravWNH73HpJJkiPskzbM=',
+  TRUE
+);
+
+UPDATE PRODUTOS SET CODIGO_BARRAS = '7891000000014' WHERE DESCRICAO = 'Teclado mecânico';
+UPDATE PRODUTOS SET CODIGO_BARRAS = '7891000000021' WHERE DESCRICAO = 'Mouse sem fio';
+UPDATE PRODUTOS SET CODIGO_BARRAS = '7891000000038' WHERE DESCRICAO = 'Monitor 27"';
+
+UPDATE CLIENTES SET LATITUDE = -23.561414, LONGITUDE = -46.655881 WHERE DOCUMENTO = '52998224725';
+UPDATE CLIENTES SET LATITUDE = -23.548943, LONGITUDE = -46.638818 WHERE DOCUMENTO = '11222333000181';
+
+COMMIT;
