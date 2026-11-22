@@ -17,6 +17,8 @@ type
     // levanta EUuidDuplicado se outro pedido com o mesmo UUID gravou antes
     procedure Inserir(APedido: TPedido);
     procedure Cancelar(APedido: TPedido);
+    procedure GravarFaturamento(AId, ANumero, ASerie: Integer; const AChave: string; AAutorizadaEm: TDateTime);
+    procedure LimparFaturamento(AId: Integer);
   end;
 
   TPedidoRepository = class(TInterfacedObject, IPedidoRepository)
@@ -32,6 +34,8 @@ type
     class function Filtro(AClienteId: Integer; const ASync: TFiltroSync): string; static;
     procedure Inserir(APedido: TPedido);
     procedure Cancelar(APedido: TPedido);
+    procedure GravarFaturamento(AId, ANumero, ASerie: Integer; const AChave: string; AAutorizadaEm: TDateTime);
+    procedure LimparFaturamento(AId: Integer);
   end;
 
 implementation
@@ -45,7 +49,8 @@ const
     'SELECT P.ID, P.CLIENTE_ID, C.NOME AS NOME_CLIENTE, P.DATA_PEDIDO, P.STATUS, P.VALOR_TOTAL, ' +
     '       P.ATUALIZADO_EM, P.UUID, P.USUARIO_ID, U.NOME AS NOME_VENDEDOR, P.LATITUDE, P.LONGITUDE, ' +
     '       P.PRECISAO_M, P.OBSERVACAO, P.ORIGEM, ' +
-    '       CASE WHEN P.ASSINATURA IS NULL THEN FALSE ELSE TRUE END AS TEM_ASSINATURA ' +
+    '       CASE WHEN P.ASSINATURA IS NULL THEN FALSE ELSE TRUE END AS TEM_ASSINATURA, ' +
+    '       P.NOTA_NUMERO, P.NOTA_SERIE, P.NOTA_CHAVE, P.NOTA_AUTORIZADA_EM ' +
     '  FROM PEDIDOS P ' +
     '  JOIN CLIENTES C ON C.ID = P.CLIENTE_ID ' +
     '  LEFT JOIN USUARIOS U ON U.ID = P.USUARIO_ID ';
@@ -69,6 +74,9 @@ begin
   Result.Observacao := AQry.FieldByName('OBSERVACAO').AsString;
   Result.Origem := TOrigemPedido.DeTexto(AQry.FieldByName('ORIGEM').AsString);
   Result.TemAssinatura := AQry.FieldByName('TEM_ASSINATURA').AsBoolean;
+  if not AQry.FieldByName('NOTA_NUMERO').IsNull then
+    Result.DefinirNota(AQry.FieldByName('NOTA_NUMERO').AsInteger, AQry.FieldByName('NOTA_SERIE').AsInteger,
+      Trim(AQry.FieldByName('NOTA_CHAVE').AsString), AQry.FieldByName('NOTA_AUTORIZADA_EM').AsDateTime);
 end;
 
 procedure Opcional(AParam: TFDParam; ATipo: TFieldType; const AValor: Variant; ATem: Boolean);
@@ -322,11 +330,13 @@ begin
   try
     LCon.StartTransaction;
     try
-      // o STATUS no WHERE segura dois cancelamentos simultâneos devolvendo estoque em dobro
+      // o STATUS no WHERE segura dois cancelamentos simultâneos devolvendo estoque em dobro;
+      // a NOTA_NUMERO segura o faturamento que chegou entre a conferência e aqui
       if LCon.ExecSQL(
-        'UPDATE PEDIDOS SET STATUS = ''CANCELADO'' WHERE ID = :ID AND STATUS = ''ABERTO''',
+        'UPDATE PEDIDOS SET STATUS = ''CANCELADO'' ' +
+        ' WHERE ID = :ID AND STATUS = ''ABERTO'' AND NOTA_NUMERO IS NULL',
         [APedido.Id]) = 0 then
-        raise ERegraNegocio.Create('Pedido já está cancelado.');
+        raise EConflito.Create('Pedido já cancelado ou faturado; atualize e tente de novo.');
 
       for LItem in APedido.Itens do
         LCon.ExecSQL('UPDATE PRODUTOS SET ESTOQUE = ESTOQUE + :QTD WHERE ID = :ID',
@@ -337,6 +347,39 @@ begin
       LCon.Rollback;
       raise;
     end;
+  finally
+    LCon.Free;
+  end;
+end;
+
+procedure TPedidoRepository.GravarFaturamento(AId, ANumero, ASerie: Integer; const AChave: string;
+  AAutorizadaEm: TDateTime);
+var
+  LCon: TFDConnection;
+begin
+  LCon := TConexao.Criar;
+  try
+    // mesmas condições do Service, de novo no WHERE: se cancelaram ou faturaram com
+    // outra nota nesse meio tempo, não grava
+    if LCon.ExecSQL(
+      'UPDATE PEDIDOS SET NOTA_NUMERO = :NUMERO, NOTA_SERIE = :SERIE, NOTA_CHAVE = :CHAVE, ' +
+      '  NOTA_AUTORIZADA_EM = :AUTORIZADA ' +
+      ' WHERE ID = :ID AND STATUS = ''ABERTO'' AND (NOTA_CHAVE IS NULL OR NOTA_CHAVE = :CHAVE_ATUAL)',
+      [ANumero, ASerie, AChave, AAutorizadaEm, AId, AChave]) = 0 then
+      raise EConflito.Create('Pedido mudou enquanto era faturado; atualize e tente de novo.');
+  finally
+    LCon.Free;
+  end;
+end;
+
+procedure TPedidoRepository.LimparFaturamento(AId: Integer);
+var
+  LCon: TFDConnection;
+begin
+  LCon := TConexao.Criar;
+  try
+    LCon.ExecSQL('UPDATE PEDIDOS SET NOTA_NUMERO = NULL, NOTA_SERIE = NULL, NOTA_CHAVE = NULL, ' +
+      'NOTA_AUTORIZADA_EM = NULL WHERE ID = :ID', [AId]);
   finally
     LCon.Free;
   end;

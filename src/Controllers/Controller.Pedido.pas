@@ -52,6 +52,15 @@ begin
       .AddPair('id', TJSONNumber.Create(APedido.UsuarioId))
       .AddPair('nome', APedido.NomeVendedor));
 
+  if APedido.Faturado then
+    Result.AddPair('nota', TJSONObject.Create
+      .AddPair('numero', TJSONNumber.Create(APedido.NotaNumero))
+      .AddPair('serie', TJSONNumber.Create(APedido.NotaSerie))
+      .AddPair('chave', APedido.NotaChave)
+      .AddPair('autorizadaEm', DataJSON(APedido.NotaAutorizadaEm)))
+  else
+    Result.AddPair('nota', TJSONNull.Create);
+
   if APedido.TemLocalizacao then
     Result.AddPair('localizacao', TJSONObject.Create
       .AddPair('latitude', TJSONNumber.Create(APedido.Latitude))
@@ -173,6 +182,42 @@ begin
   end;
 end;
 
+// { "numero": 123, "serie": 1, "chave": "3526...", "autorizadaEm": "2026-11-22T10:00:00-03:00" }
+procedure Faturar(AReq: THorseRequest; ARes: THorseResponse);
+var
+  LJson: TJSONObject;
+  LAutorizada: string;
+  LData: TDateTime;
+  LPedido: TPedido;
+begin
+  LJson := CorpoJSON(AReq);
+  LAutorizada := LerTexto(LJson, 'autorizadaEm');
+  if LAutorizada = '' then
+    LData := Now
+  else
+    LData := ISO8601ToDateValidado(LAutorizada, 'autorizadaEm');
+
+  LPedido := Service.Faturar(IdDaRota(AReq), LerInteiro(LJson, 'numero'), LerInteiro(LJson, 'serie'),
+    LerTexto(LJson, 'chave'), LData);
+  try
+    ARes.Send<TJSONObject>(PedidoParaJSON(LPedido, True));
+  finally
+    LPedido.Free;
+  end;
+end;
+
+procedure RemoverFaturamento(AReq: THorseRequest; ARes: THorseResponse);
+var
+  LPedido: TPedido;
+begin
+  LPedido := Service.RemoverFaturamento(IdDaRota(AReq));
+  try
+    ARes.Send<TJSONObject>(PedidoParaJSON(LPedido, True));
+  finally
+    LPedido.Free;
+  end;
+end;
+
 procedure LerAssinatura(AReq: THorseRequest; ARes: THorseResponse);
 var
   LStream: TBytesStream;
@@ -205,6 +250,10 @@ begin
 
   THorse.Get('/pedidos/:id', Buscar);
   THorse.Get('/pedidos/:id/assinatura', LerAssinatura);
+  // o emissor de NF-e avisa quando a nota do pedido é autorizada ou cancelada
+  THorse.Route('/pedidos/:id/faturamento')
+    .Patch(Faturar)
+    .Delete(RemoverFaturamento);
   // cancelar é uma ação, não uma troca de recurso inteiro: PATCH num sub-recurso
   THorse.Patch('/pedidos/:id/cancelar', Cancelar);
 end;

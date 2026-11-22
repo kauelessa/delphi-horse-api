@@ -59,11 +59,18 @@ type
     FOrigem: TOrigemPedido;
     FAssinatura: TBytes;
     FTemAssinatura: Boolean;
+    FNotaNumero: Integer;
+    FNotaSerie: Integer;
+    FNotaChave: string;
+    FNotaAutorizadaEm: TDateTime;
   public
     constructor Create;
     destructor Destroy; override;
     function AdicionarItem(AProdutoId, AQuantidade: Integer): TPedidoItem;
     procedure DefinirLocalizacao(ALatitude, ALongitude, APrecisao: Double);
+    procedure DefinirNota(ANumero, ASerie: Integer; const AChave: string; AAutorizadaEm: TDateTime);
+    procedure LimparNota;
+    function Faturado: Boolean;
     // cópia completa, com itens (usada quando o pedido já existia pelo UUID)
     procedure Assign(AOrigem: TPedido);
 
@@ -86,6 +93,11 @@ type
     // PNG; só vem preenchida na criação. Na leitura do banco vale TemAssinatura.
     property Assinatura: TBytes read FAssinatura write FAssinatura;
     property TemAssinatura: Boolean read FTemAssinatura write FTemAssinatura;
+    // NF-e informada pelo emissor; zerados enquanto não faturado
+    property NotaNumero: Integer read FNotaNumero;
+    property NotaSerie: Integer read FNotaSerie;
+    property NotaChave: string read FNotaChave;
+    property NotaAutorizadaEm: TDateTime read FNotaAutorizadaEm;
     property Itens: TObjectList<TPedidoItem> read FItens;
   end;
 
@@ -151,6 +163,24 @@ begin
   FTemLocalizacao := True;
 end;
 
+procedure TPedido.DefinirNota(ANumero, ASerie: Integer; const AChave: string; AAutorizadaEm: TDateTime);
+begin
+  FNotaNumero := ANumero;
+  FNotaSerie := ASerie;
+  FNotaChave := AChave;
+  FNotaAutorizadaEm := AAutorizadaEm;
+end;
+
+procedure TPedido.LimparNota;
+begin
+  DefinirNota(0, 0, '', 0);
+end;
+
+function TPedido.Faturado: Boolean;
+begin
+  Result := FNotaNumero > 0;
+end;
+
 procedure TPedido.Assign(AOrigem: TPedido);
 var
   LItem, LNovo: TPedidoItem;
@@ -173,6 +203,7 @@ begin
   FOrigem := AOrigem.Origem;
   FAssinatura := Copy(AOrigem.Assinatura);
   FTemAssinatura := AOrigem.TemAssinatura;
+  DefinirNota(AOrigem.NotaNumero, AOrigem.NotaSerie, AOrigem.NotaChave, AOrigem.NotaAutorizadaEm);
 
   FItens.Clear;
   for LItem in AOrigem.Itens do

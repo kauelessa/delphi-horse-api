@@ -101,6 +101,9 @@ type
     function BuscarPorId(AId: Integer): TPedido;
     procedure Inserir(APedido: TPedido);
     procedure Cancelar(APedido: TPedido);
+    procedure GravarFaturamento(AId, ANumero, ASerie: Integer; const AChave: string; AAutorizadaEm: TDateTime);
+    procedure LimparFaturamento(AId: Integer);
+    var Faturamentos: Integer;
   end;
 
   TSessaoRepositoryFake = class(TInterfacedObject, ISessaoRepository)
@@ -521,6 +524,18 @@ procedure TPedidoRepositoryFake.Cancelar(APedido: TPedido);
 begin
   Localizar(APedido.Id).Status := spCancelado;
   Inc(FCancelamentos);
+end;
+
+procedure TPedidoRepositoryFake.GravarFaturamento(AId, ANumero, ASerie: Integer; const AChave: string;
+  AAutorizadaEm: TDateTime);
+begin
+  Localizar(AId).DefinirNota(ANumero, ASerie, AChave, AAutorizadaEm);
+  Inc(Faturamentos);
+end;
+
+procedure TPedidoRepositoryFake.LimparFaturamento(AId: Integer);
+begin
+  Localizar(AId).LimparNota;
 end;
 
 { TRelogioFake }

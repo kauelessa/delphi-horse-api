@@ -31,6 +31,7 @@ type
     function PedidoDoApp: TPedido;
     function ServiceComRelogio: IPedidoService;
     procedure VerificarRecusa(APedido: TPedido; AExcecao: ExceptClass; const AMensagem: string);
+    function PedidoGravado: Integer;
   public
     [Setup]
     procedure Setup;
@@ -85,6 +86,22 @@ type
     procedure ObservacaoLongaRecusada;
     [Test]
     procedure PedidoDoAppContinuaConferindoEstoque;
+    [Test]
+    procedure Faturar_PedidoAberto_GravaANota;
+    [Test]
+    procedure Faturar_PedidoCancelado_Conflito;
+    [Test]
+    procedure Faturar_DadosDaNotaInvalidos_RequisicaoInvalida;
+    [Test]
+    procedure Faturar_MesmaChave_NaoMudaNada;
+    [Test]
+    procedure Faturar_OutraChave_Conflito;
+    [Test]
+    procedure Cancelar_PedidoFaturado_Conflito;
+    [Test]
+    procedure RemoverFaturamento_Faturado_Limpa;
+    [Test]
+    procedure RemoverFaturamento_NaoFaturado_SemErro;
   end;
 
 implementation
@@ -489,6 +506,131 @@ begin
   LPedido := PedidoDoApp;
   LPedido.Itens[0].Quantidade := 999;
   VerificarRecusa(LPedido, ERegraNegocio, 'Estoque insuficiente para "Teclado" (disponível: 10).');
+end;
+
+const
+  CHAVE_A = '35261111222333000181550010000001231000001234';
+  CHAVE_B = '35261111222333000181550010000001241000001240';
+  AUTORIZADA_EM: TDateTime = 46348.6;
+
+function TTestsPedidoService.PedidoGravado: Integer;
+var
+  LPedido: TPedido;
+begin
+  LPedido := NovoPedido(FClienteId);
+  try
+    LPedido.AdicionarItem(FTecladoId, 1);
+    FService.Criar(LPedido);
+    Result := LPedido.Id;
+  finally
+    LPedido.Free;
+  end;
+end;
+
+procedure TTestsPedidoService.Faturar_PedidoAberto_GravaANota;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  FService.Faturar(LId, 123, 1, CHAVE_A, AUTORIZADA_EM).Free;
+
+  Assert.IsTrue(FPedidos.Obter(LId).Faturado);
+  Assert.AreEqual(123, FPedidos.Obter(LId).NotaNumero);
+  Assert.AreEqual(1, FPedidos.Obter(LId).NotaSerie);
+  Assert.AreEqual(CHAVE_A, FPedidos.Obter(LId).NotaChave);
+  Assert.AreEqual(AUTORIZADA_EM, FPedidos.Obter(LId).NotaAutorizadaEm);
+end;
+
+procedure TTestsPedidoService.Faturar_PedidoCancelado_Conflito;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  FService.Cancelar(LId).Free;
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      FService.Faturar(LId, 123, 1, CHAVE_A, AUTORIZADA_EM).Free;
+    end,
+    EConflito, 'Pedido cancelado não pode ser faturado.');
+end;
+
+procedure TTestsPedidoService.Faturar_DadosDaNotaInvalidos_RequisicaoInvalida;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  Assert.WillRaise(procedure begin FService.Faturar(LId, 0, 1, CHAVE_A, AUTORIZADA_EM).Free; end,
+    ERequisicaoInvalida, 'número zero');
+  Assert.WillRaise(procedure begin FService.Faturar(LId, 123, -1, CHAVE_A, AUTORIZADA_EM).Free; end,
+    ERequisicaoInvalida, 'série negativa');
+  Assert.WillRaise(procedure begin FService.Faturar(LId, 123, 1, Copy(CHAVE_A, 1, 43), AUTORIZADA_EM).Free; end,
+    ERequisicaoInvalida, 'chave com 43 dígitos');
+  Assert.WillRaise(procedure begin FService.Faturar(LId, 123, 1, Copy(CHAVE_A, 1, 43) + 'X', AUTORIZADA_EM).Free; end,
+    ERequisicaoInvalida, 'chave com letra');
+  Assert.IsFalse(FPedidos.Obter(LId).Faturado);
+end;
+
+procedure TTestsPedidoService.Faturar_MesmaChave_NaoMudaNada;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  FService.Faturar(LId, 123, 1, CHAVE_A, AUTORIZADA_EM).Free;
+  // o emissor reenvia depois de não receber a resposta
+  FService.Faturar(LId, 123, 1, CHAVE_A, AUTORIZADA_EM).Free;
+  Assert.AreEqual(1, FPedidos.Faturamentos);
+end;
+
+procedure TTestsPedidoService.Faturar_OutraChave_Conflito;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  FService.Faturar(LId, 123, 1, CHAVE_A, AUTORIZADA_EM).Free;
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      FService.Faturar(LId, 124, 1, CHAVE_B, AUTORIZADA_EM).Free;
+    end,
+    EConflito, 'Pedido já faturado na NF-e 123.');
+  Assert.AreEqual(CHAVE_A, FPedidos.Obter(LId).NotaChave);
+end;
+
+procedure TTestsPedidoService.Cancelar_PedidoFaturado_Conflito;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  FService.Faturar(LId, 123, 1, CHAVE_A, AUTORIZADA_EM).Free;
+  Assert.WillRaiseWithMessage(
+    procedure
+    begin
+      FService.Cancelar(LId).Free;
+    end,
+    EConflito, 'Pedido faturado na NF-e 123; cancele a nota primeiro.');
+  Assert.AreEqual(0, FPedidos.Cancelamentos);
+end;
+
+procedure TTestsPedidoService.RemoverFaturamento_Faturado_Limpa;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  FService.Faturar(LId, 123, 1, CHAVE_A, AUTORIZADA_EM).Free;
+  FService.RemoverFaturamento(LId).Free; // NF-e cancelada no emissor
+  Assert.IsFalse(FPedidos.Obter(LId).Faturado);
+  Assert.AreEqual('', FPedidos.Obter(LId).NotaChave);
+  FService.Cancelar(LId).Free; // agora pode cancelar
+end;
+
+procedure TTestsPedidoService.RemoverFaturamento_NaoFaturado_SemErro;
+var
+  LId: Integer;
+begin
+  LId := PedidoGravado;
+  FService.RemoverFaturamento(LId).Free;
+  Assert.IsFalse(FPedidos.Obter(LId).Faturado);
 end;
 
 initialization

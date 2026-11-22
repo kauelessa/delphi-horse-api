@@ -33,6 +33,12 @@ type
     function Status: Integer; override;
   end;
 
+  { 409 - a operação conflita com o estado atual do recurso }
+  EConflito = class(EApiErro)
+  public
+    function Status: Integer; override;
+  end;
+
   { 422 - dados válidos sintaticamente, mas que violam regra de negócio }
   ERegraNegocio = class(EApiErro)
   public
@@ -58,6 +64,11 @@ end;
 function ENaoEncontrado.Status: Integer;
 begin
   Result := 404;
+end;
+
+function EConflito.Status: Integer;
+begin
+  Result := 409;
 end;
 
 function ERegraNegocio.Status: Integer;

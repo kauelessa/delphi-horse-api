@@ -22,6 +22,8 @@ type
     procedure Criar(APedido: TPedido; out AJaExistia: Boolean); overload;
     function Cancelar(AId: Integer): TPedido;
     function LerAssinatura(AId: Integer): TBytes;
+    function Faturar(AId, ANumero, ASerie: Integer; const AChave: string; AAutorizadaEm: TDateTime): TPedido;
+    function RemoverFaturamento(AId: Integer): TPedido;
   end;
 
   TPedidoService = class(TInterfacedObject, IPedidoService)
@@ -60,6 +62,12 @@ type
     { Só pedidos ABERTOS podem ser cancelados; o estoque dos itens é devolvido.
       Retorna o pedido já com o novo status (o chamador libera). }
     function Cancelar(AId: Integer): TPedido;
+
+    { Chamado pelo emissor quando a NF-e do pedido é autorizada. Reenvio com a
+      mesma chave não muda nada; outra chave é conflito (409). Devolve o pedido. }
+    function Faturar(AId, ANumero, ASerie: Integer; const AChave: string; AAutorizadaEm: TDateTime): TPedido;
+    { NF-e cancelada no emissor: o pedido volta a não faturado. }
+    function RemoverFaturamento(AId: Integer): TPedido;
   end;
 
 implementation
@@ -256,6 +264,62 @@ begin
   end;
 end;
 
+function ChaveValida(const AChave: string): Boolean;
+var
+  C: Char;
+begin
+  Result := Length(AChave) = 44;
+  if Result then
+    for C in AChave do
+      if not CharInSet(C, ['0'..'9']) then
+        Exit(False);
+end;
+
+function TPedidoService.Faturar(AId, ANumero, ASerie: Integer; const AChave: string;
+  AAutorizadaEm: TDateTime): TPedido;
+begin
+  if ANumero <= 0 then
+    raise ERequisicaoInvalida.Create('Informe o número da NF-e.');
+  if ASerie < 0 then
+    raise ERequisicaoInvalida.Create('Série da NF-e inválida.');
+  if not ChaveValida(AChave.Trim) then
+    raise ERequisicaoInvalida.Create('A chave da NF-e deve ter 44 dígitos.');
+
+  Result := Buscar(AId);
+  try
+    if Result.Status = spCancelado then
+      raise EConflito.Create('Pedido cancelado não pode ser faturado.');
+
+    if Result.Faturado then
+    begin
+      if Result.NotaChave = AChave.Trim then
+        Exit; // reenvio do emissor
+      raise EConflito.CreateFmt('Pedido já faturado na NF-e %d.', [Result.NotaNumero]);
+    end;
+
+    FPedidos.GravarFaturamento(AId, ANumero, ASerie, AChave.Trim, AAutorizadaEm);
+    Result.DefinirNota(ANumero, ASerie, AChave.Trim, AAutorizadaEm);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+function TPedidoService.RemoverFaturamento(AId: Integer): TPedido;
+begin
+  Result := Buscar(AId);
+  try
+    if Result.Faturado then
+    begin
+      FPedidos.LimparFaturamento(AId);
+      Result.LimparNota;
+    end;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
 function TPedidoService.LerAssinatura(AId: Integer): TBytes;
 begin
   Buscar(AId).Free; // 404 se o pedido não existe
@@ -270,6 +334,9 @@ begin
   try
     if Result.Status = spCancelado then
       raise ERegraNegocio.Create('Pedido já está cancelado.');
+    // a mercadoria saiu com nota: devolver o estoque aqui deixaria a NF-e órfã
+    if Result.Faturado then
+      raise EConflito.CreateFmt('Pedido faturado na NF-e %d; cancele a nota primeiro.', [Result.NotaNumero]);
 
     FPedidos.Cancelar(Result);
     Result.Status := spCancelado;
